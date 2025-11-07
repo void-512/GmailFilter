@@ -38,17 +38,16 @@ def filter_helper(msg_id, pattern, matching_msg_id):
         payload = full_msg.get('payload', {})
         headers = payload.get('headers', [])
         subject = next((h['value'] for h in headers if h['name'].lower() == 'subject'), '')
+        sender = next((h['value'] for h in headers if h['name'].lower() == 'from'), '')
         snippet = full_msg.get('snippet', '')
         body = extract_text_from_payload(payload)
 
-        combined_text = f"{subject}\n{snippet}\n{body}"
+        combined_text = f"{subject}\n{sender}\n{snippet}\n{body}"
 
         if pattern.search(combined_text):
             matching_msg_id.append(msg_id)
     except Exception as e:
         print(f"⚠️ Error in filter_helper with msg_id {msg_id}: {e}")
-
-
 
 def filter_messages_by_keywords(service, pattern, max_total=NUM_MESSAGES, max_threads=8):
     """
