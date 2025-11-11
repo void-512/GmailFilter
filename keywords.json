@@ -1,7 +1,8 @@
 {
-  "include_all": {
+  "include_all_keywords": {
     "filter1": ["your order is confirmed", "thank you for your purchase", "your order is on its way", "order confirmation", "order confirmed", "purchase confirmation", "receipt", "invoice", "shipping confirmation", "tracking number", "order shipped", "order delivered", "payment confirmation", "transaction receipt", "order summary", "order details", "shipping details", "delivery confirmation", "order status", "order update", "order shipped", "order processing", "order received", "order placed", "order completed", "order fulfilled", "order dispatched", "order in transit", "order out for delivery", "your order confirmation", "rnoreply@", "rreceipts?@", "rbilling@", "rpayments?@", "rsupport@", "rinfo@", "rservice@", "rcustomerservice@", "rhelp@", "rcontact@"]
 
 },
-  "exclude_any": []
+  "exclude_any_keywords": [],
+  "order_id_patterns": ["order\\s#(\\d{4,})", "no\\.\\s(\\d{4,})"]
 }
