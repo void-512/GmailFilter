@@ -47,13 +47,13 @@ def display_matches(matches):
         return
 
     for msg_id, subject, order_id, timestamp, has_attachment in matches:
-        attach_icon = "📎" if has_attachment else "—"
+        attachment = "Yes" if has_attachment else "—"
         table.add_row(
-            msg_id[:10] + "…",  # shorten ID
+            msg_id[:10] + "…",
             subject or "[dim]No Subject[/dim]",
             order_id or "[dim]N/A[/dim]",
             format_timestamp(timestamp),
-            attach_icon
+            attachment
         )
 
     console.print(table)

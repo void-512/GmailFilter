@@ -14,5 +14,5 @@ if __name__ == '__main__':
 
     filter_messages_by_keywords(service, include_all_compiled, exclude_any_compiled, order_id_patterns)
 
-    matches = read_matches()
-    display_matches(matches)
+    # matches = read_matches()
+    # display_matches(matches)

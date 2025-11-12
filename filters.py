@@ -95,30 +95,34 @@ def get_plain_text(msg_id):
 def get_message_metadata(service, msg_id):
     """
     Fetch metadata (subject, timestamp, has_attachment) for a Gmail message.
-    Only uses the Gmail API — minimal fields for performance.
+    Uses Gmail API; 'full' format ensures attachment info is present.
     """
-    msg = service.users().messages().get(userId="me", id=msg_id, format="metadata", metadataHeaders=["Subject"]).execute()
+    msg = service.users().messages().get(
+        userId="me", id=msg_id, format="full"
+    ).execute()
 
     headers = msg.get("payload", {}).get("headers", [])
-    subject = ""
-    for h in headers:
-        if h["name"].lower() == "subject":
-            subject = h["value"]
-            break
-
+    subject = next((h["value"] for h in headers if h["name"].lower() == "subject"), "")
     timestamp = msg.get("internalDate", "")
-    has_attachment = 0
+    payload = msg.get("payload", {})
 
-    parts = msg.get("payload", {}).get("parts", [])
-    for part in parts:
-        if part.get("filename"):  # if filename exists, it's an attachment
-            has_attachment = 1
-            break
+    def _check_parts(part):
+        """Recursively search for attachment indicators."""
+        if part.get("body", {}).get("attachmentId"):
+            return True
+        for subpart in part.get("parts", []) or []:
+            if _check_parts(subpart):
+                return True
+        return False
+
+    has_attachment = int(_check_parts(payload))
+    if has_attachment:
+        print("Attachment found")
 
     return {
         "subject": subject,
         "timestamp": timestamp,
-        "has_attachment": has_attachment
+        "has_attachment": has_attachment,
     }
 
 
