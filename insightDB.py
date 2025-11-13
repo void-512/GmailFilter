@@ -17,7 +17,7 @@ def read_matches(db_path=DB_PATH):
     """Fetch all records from the matched_messages table."""
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    cursor.execute("SELECT id, subject, order_id, timestamp, has_attachment FROM matched_messages ORDER BY timestamp DESC")
+    cursor.execute("SELECT id, subject, order_id, timestamp, has_attachment, text_length FROM matched_messages ORDER BY timestamp DESC")
     rows = cursor.fetchall()
     conn.close()
     return rows
@@ -41,19 +41,21 @@ def display_matches(matches):
     table.add_column("Order ID", style="green")
     table.add_column("Timestamp", style="magenta")
     table.add_column("Attachment", style="bright_blue", justify="center")
+    table.add_column("Text Length", style="dim", justify="right")
 
     if not matches:
         console.print("[red]No matched messages found in the database.[/red]")
         return
 
-    for msg_id, subject, order_id, timestamp, has_attachment in matches:
+    for msg_id, subject, order_id, timestamp, has_attachment, text_length in matches:
         attachment = "Yes" if has_attachment else "—"
         table.add_row(
             msg_id[:10] + "…",
             subject or "[dim]No Subject[/dim]",
             order_id or "[dim]N/A[/dim]",
             format_timestamp(timestamp),
-            attachment
+            attachment,
+            str(text_length)
         )
 
     console.print(table)

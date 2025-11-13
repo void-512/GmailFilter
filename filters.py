@@ -19,7 +19,8 @@ def init_db(db_path="matches.db"):
             subject TEXT,
             order_id TEXT,
             timestamp TEXT,
-            has_attachment INTEGER
+            has_attachment INTEGER,
+            text_length INTEGER
         )
     """)
     conn.commit()
@@ -126,7 +127,7 @@ def get_message_metadata(service, msg_id):
     }
 
 
-def insert_match(service, msg_id, order_id, db_path="matches.db"):
+def insert_match(service, msg_id, order_id, text_length, db_path="matches.db"):
     """
     Thread-safe insert of message data into SQLite.
     Fetches subject, timestamp, and attachment info via Gmail API.
@@ -143,19 +144,22 @@ def insert_match(service, msg_id, order_id, db_path="matches.db"):
             cursor = conn.cursor()
             cursor.execute("""
                 INSERT OR REPLACE INTO matched_messages
-                (id, subject, order_id, timestamp, has_attachment)
-                VALUES (?, ?, ?, ?, ?)
-            """, (msg_id, subject, order_id, timestamp, has_attachment))
+                (id, subject, order_id, timestamp, has_attachment, text_length)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (msg_id, subject, order_id, timestamp, has_attachment, text_length))
             conn.commit()
             conn.close()
 
     except Exception as e:
         print(f"⚠️ Error inserting match {msg_id}: {e}")
 
+
 def single_message_matcher(msg_id, include_all_compiled, exclude_any_compiled, order_id_patterns, matching_msg_id):
     try:
         service = get_gmail_service()
         combined_text = re.sub(r"[\u200B-\u200D\uFEFF]", "", get_plain_text(msg_id))
+        text_length = len(combined_text or "")
+
         if is_match(combined_text, include_all_compiled, exclude_any_compiled):
             for pat in order_id_patterns:
                 regex = re.compile(pat, re.IGNORECASE)
@@ -163,10 +167,11 @@ def single_message_matcher(msg_id, include_all_compiled, exclude_any_compiled, o
                 if match:
                     matching_msg_id.append(msg_id)
                     order_id = match.group(0).strip()
-                    insert_match(service, msg_id, order_id)
+                    insert_match(service, msg_id, order_id, text_length)
                     break
     except Exception as e:
         print(f"⚠️ Error in filter_helper with msg_id {msg_id}: {e}")
+
 
 def filter_messages_by_keywords(service, include_all_compiled, exclude_any_compiled, order_id_patterns, max_total=NUM_MESSAGES, max_threads=8):
     """
