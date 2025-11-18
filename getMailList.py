@@ -29,13 +29,16 @@ def get_gmail_service():
 
     return build('gmail', 'v1', credentials=creds)
 
-def list_messages(service, user_id='me', max_total=NUM_MESSAGES):
+def list_messages(service, user_id='me', after_date="2024/01/01"):
+    query = f"after:{after_date}"
+    
     all_messages = []
     page_token = None
 
     while True:
         response = service.users().messages().list(
             userId=user_id,
+            q=query,
             maxResults=500,
             pageToken=page_token
         ).execute()
@@ -43,10 +46,10 @@ def list_messages(service, user_id='me', max_total=NUM_MESSAGES):
         all_messages.extend(response.get('messages', []))
 
         page_token = response.get('nextPageToken')
-        if not page_token or len(all_messages) >= max_total:
+        if not page_token:
             break
 
-    return all_messages[:max_total]
+    return all_messages
 
 
 def get_message(service, msg_id, user_id='me', format='full'):

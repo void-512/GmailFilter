@@ -17,7 +17,11 @@ def read_matches(db_path=DB_PATH):
     """Fetch all records from the matched_messages table."""
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    cursor.execute("SELECT id, subject, order_id, timestamp, has_attachment, text_length FROM matched_messages ORDER BY timestamp DESC")
+    cursor.execute("""
+        SELECT id, subject, sender, order_id, timestamp, has_attachment, text_length, domain
+        FROM matched_messages
+        ORDER BY timestamp DESC
+    """)
     rows = cursor.fetchall()
     conn.close()
     return rows
@@ -38,24 +42,32 @@ def display_matches(matches):
 
     table.add_column("Msg ID", style="cyan", no_wrap=True)
     table.add_column("Subject", style="bold yellow")
+    table.add_column("Sender", style="blue")
     table.add_column("Order ID", style="green")
     table.add_column("Timestamp", style="magenta")
     table.add_column("Attachment", style="bright_blue", justify="center")
     table.add_column("Text Length", style="dim", justify="right")
-
+    table.add_column("Domain", style="purple")
     if not matches:
         console.print("[red]No matched messages found in the database.[/red]")
         return
 
-    for msg_id, subject, order_id, timestamp, has_attachment, text_length in matches:
+    for msg_id, subject, sender, order_id, timestamp, has_attachment, text_length, domain in matches:
+
         attachment = "Yes" if has_attachment else "—"
+
+        # Limit long senders to avoid table overflow
+        sender_display = sender if len(sender) < 40 else sender[:37] + "..."
+
         table.add_row(
             msg_id[:10] + "…",
             subject or "[dim]No Subject[/dim]",
+            sender_display or "[dim]N/A[/dim]",
             order_id or "[dim]N/A[/dim]",
             format_timestamp(timestamp),
             attachment,
-            str(text_length)
+            str(text_length),
+            domain
         )
 
     console.print(table)
