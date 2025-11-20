@@ -46,9 +46,13 @@ def load_from_json(path=KEYWORD_FILE):
     exclude_any_compiled = re.compile("|".join(re.escape(k) for k in exclude_any_list), re.IGNORECASE) if exclude_any_list else None
 
     domain_list = cfg.get("domains", [])
-    domain_patterns = [
-        re.compile(r"\b" + re.escape(d) + r"\b", re.IGNORECASE) for d in domain_list
-    ]
+    domain_patterns = []
+
+    for d in domain_list:
+        clean = d  # store raw domain text
+        regex = re.compile(rf"(?<![A-Za-z0-9]){re.escape(d)}(?![A-Za-z0-9])", re.IGNORECASE)
+        domain_patterns.append((clean, regex))
+
 
     return include_all_compiled, exclude_any_compiled, cfg.get("order_id_patterns", []), domain_patterns
 
@@ -113,7 +117,7 @@ def get_message_metadata(service, msg_id):
     headers = payload.get("headers", [])
 
     subject = next((h["value"] for h in headers if h["name"].lower() == "subject"), "")
-    sender  = next((h["value"] for h in headers if h["name"].lower() == "from"), "")     # NEW
+    sender  = next((h["value"] for h in headers if h["name"].lower() == "from"), "")
     timestamp = msg.get("internalDate", "")
 
     def _check_parts(part):
@@ -128,7 +132,7 @@ def get_message_metadata(service, msg_id):
 
     return {
         "subject": subject,
-        "sender": sender,                # NEW
+        "sender": sender,
         "timestamp": timestamp,
         "has_attachment": has_attachment,
     }
@@ -172,9 +176,9 @@ def single_message_matcher(msg_id, include_all_compiled, exclude_any_compiled,
         text_length = len(combined_text or "")
 
         matched_domain = None
-        for d_regex in domain_patterns:
+        for clean_domain, d_regex in domain_patterns:
             if d_regex.search(combined_text):
-                matched_domain = d_regex.pattern.strip("\\")
+                matched_domain = clean_domain
                 break
         # print("domain matched:", matched_domain)
 

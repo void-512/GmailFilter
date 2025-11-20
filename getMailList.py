@@ -29,8 +29,8 @@ def get_gmail_service():
 
     return build('gmail', 'v1', credentials=creds)
 
-def list_messages(service, user_id='me', after_date="2024/01/01"):
-    query = f"after:{after_date}"
+def list_messages(service, user_id='me', before_date="2023/12/31", after_date="2023/01/01"):
+    query = f"after:{after_date} before:{before_date}"
     
     all_messages = []
     page_token = None
