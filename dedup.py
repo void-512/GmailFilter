@@ -2,22 +2,21 @@ import sqlite3
 
 def deduplicate_by_order_id(db_path="matches.db"):
     """
-    Remove duplicate messages that share the same order_id,
+    Remove duplicate messages that share the same order_id (case-insensitive),
     keeping only the one with the longest text_length.
     """
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
-    # Delete all messages whose text_length is not the maximum within their order_id group
     cursor.execute("""
         DELETE FROM matched_messages
         WHERE id NOT IN (
             SELECT id FROM (
-                SELECT id, order_id
-                FROM matched_messages
-                WHERE text_length IS NOT NULL
-                GROUP BY order_id
-                HAVING text_length = MAX(text_length)
+                SELECT id
+                FROM matched_messages AS mm
+                WHERE mm.text_length IS NOT NULL
+                GROUP BY LOWER(mm.order_id)
+                HAVING mm.text_length = MAX(mm.text_length)
             )
         )
         AND order_id IS NOT NULL;
