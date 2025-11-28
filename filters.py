@@ -1,4 +1,5 @@
 import re
+import os
 import json
 import base64
 import sqlite3
@@ -10,6 +11,7 @@ from concurrent.futures import ThreadPoolExecutor
 from getMailList import get_gmail_service, list_messages, get_message
 
 db_lock = threading.Lock()
+DEBUG = os.getenv("DEBUG", "0") == "1"
 
 
 # ≡============================================================≡
@@ -80,10 +82,14 @@ def load_from_json(path=KEYWORD_FILE):
 def is_match(text, include_all_compiled, exclude_any_compiled=None):
 
     if exclude_any_compiled and exclude_any_compiled.search(text):
+        if DEBUG:
+            print("Excluded by keyword")
         return False
 
     for _, patterns in include_all_compiled.items():
         if not any(p.search(text) for p in patterns):
+            if DEBUG:
+                print("Excluded by missing keyword in block")
             return False
 
     return True
@@ -231,6 +237,11 @@ def single_message_matcher(msg_id,
         full_msg = get_message(service, msg_id)
         headers = full_msg.get("payload", {}).get("headers", [])
         sender = next((h["value"] for h in headers if h["name"].lower() == "from"), "")
+        if DEBUG:
+            print("--------------------------------------------")
+            metadata = get_message_metadata(service, msg_id)
+            print(f"Subject: {metadata['subject']}")
+            print(f"Sender: {metadata['sender']}")
 
         # === NEW DOMAIN LOGIC ===
         sender_domain = extract_sender_domain(sender)
@@ -239,6 +250,8 @@ def single_message_matcher(msg_id,
         for word in domain_keywords:
             if word in sender_domain:   # substring match OK
                 matched_domain = word
+                if DEBUG:
+                    print(f"Matched domain: {matched_domain}")
                 break
 
         if matched_domain is None:
@@ -246,9 +259,13 @@ def single_message_matcher(msg_id,
 
         # keyword filtering
         if is_match(combined_text, include_all_compiled, exclude_any_compiled):
+            if DEBUG:
+                print(f"Keyword match found")
             for pat in order_id_patterns:
                 match = re.search(pat, combined_text, flags=re.IGNORECASE)
                 if match:
+                    if DEBUG:
+                        print(f"Order ID match found: {match.group(0).strip()}")
                     order_id = match.group(0).strip()
                     matching_msg_id.append(msg_id)
                     insert_match(service, msg_id, order_id, text_length, matched_domain)
@@ -268,7 +285,7 @@ def filter_messages_by_keywords(service,
                                 order_id_patterns,
                                 domain_keywords,
                                 max_total=NUM_MESSAGES,
-                                max_threads=6):
+                                max_threads=8):
 
     init_db()
 
