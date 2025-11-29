@@ -2,7 +2,7 @@
   "include_all_keywords": {
     "filter1": ["thank you for your purchase", "order confirmation", "order confirmed", "purchase confirmation", "receipt", "invoice", "shipping confirmation", "tracking number", "order delivered", "payment confirmation", "transaction receipt", "order summary", "order details", "shipping details", "delivery confirmation", "order status", "order update", "order processing", "order received", "order placed", "order completed", "order fulfilled", "order dispatched", "order in transit", "order out for delivery", "Has Been Processed", "your order", "shipped", "rnoreply@", "rreceipts?@", "rbilling@", "rpayments?@", "rsupport@", "rinfo@", "rservice@", "rcustomerservice@", "rhelp@", "rcontact@"]
 },
-  "exclude_any_keywords": ["unsubscribe", "promotion", "shipment-tracking@amazon.com", "order-update@amazon.com", "digital-no-reply@amazon.com", "shipment-tracking@amazon.ca", "payments-update@amazon.com"],
+  "exclude_any_keywords": ["shipment-tracking@amazon.com", "order-update@amazon.com", "digital-no-reply@amazon.com", "shipment-tracking@amazon.ca", "payments-update@amazon.com", "store-news@amazon.com", "americanexpress.com"],
   "order_id_patterns": [
     "Transaction\\s+#\\d{5}",
     "^order\\s+\\d{4}[A-Z]{2}\\d{2}[A-Z]\\d{4}[A-Z]$",
@@ -12,7 +12,6 @@
     "order\\s+[A-Z]\\d[A-Z]\\d{3}$",
     "order:\\s*[A-Z]{3}\\d{9}",
     "no\\W*[A-Z]{4}\\d[A-Z]",
-    "number\\W*[A-Z]{4}\\d[A-Z]",
     "WB\\d{11}",
     "C\\d{11}",
     "\\*\\d{11}\\*",
