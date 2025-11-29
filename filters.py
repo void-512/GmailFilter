@@ -242,6 +242,7 @@ def single_message_matcher(msg_id,
             metadata = get_message_metadata(service, msg_id)
             print(f"Subject: {metadata['subject']}")
             print(f"Sender: {metadata['sender']}")
+            print(f"Text length: {text_length}")
 
         # === NEW DOMAIN LOGIC ===
         sender_domain = extract_sender_domain(sender)
