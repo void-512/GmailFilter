@@ -147,8 +147,6 @@ def get_plain_text(msg_id):
     snippet = full_msg.get("snippet", "")
     body = extract_text_from_payload(payload)
 
-    print(f"{subject}\n{sender}\n{snippet}\n{body}")
-
     return f"{subject}\n{sender}\n{snippet}\n{body}"
 
 
