@@ -5,6 +5,7 @@ import base64
 import sqlite3
 import threading
 from datetime import datetime
+from config import MAX_THREADS
 from email.utils import parseaddr
 from config import KEYWORD_FILE, NUM_MESSAGES
 from concurrent.futures import ThreadPoolExecutor
@@ -29,7 +30,8 @@ def init_db(db_path="matches.db"):
             domain TEXT,
             timestamp TEXT,
             has_attachment INTEGER,
-            text_length INTEGER
+            text_length INTEGER,
+            return_flag INTEGER DEFAULT 0
         )
     """)
     conn.commit()
@@ -286,7 +288,7 @@ def filter_messages_by_keywords(service,
                                 order_id_patterns,
                                 domain_keywords,
                                 max_total=NUM_MESSAGES,
-                                max_threads=8):
+                                max_threads=MAX_THREADS):
 
     init_db()
 
