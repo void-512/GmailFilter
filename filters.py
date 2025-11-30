@@ -103,20 +103,33 @@ def is_match(text, include_all_compiled, exclude_any_compiled=None):
 # ≡============================================================≡
 def extract_text_from_payload(payload):
     text = ""
-    if "parts" in payload:
-        for part in payload["parts"]:
-            mime = part.get("mimeType", "")
-            if mime == "text/plain":
-                data = part["body"].get("data")
-                if data:
-                    text += base64.urlsafe_b64decode(data).decode("utf-8", errors="ignore") + "\n"
-            elif mime.startswith("multipart/"):
-                text += extract_text_from_payload(part)
-    else:
-        data = payload["body"].get("data")
-        if data:
-            text += base64.urlsafe_b64decode(data).decode("utf-8", errors="ignore")
-    return text.strip()
+    html = ""
+
+    def process_part(part):
+        nonlocal text, html
+
+        mime = part.get("mimeType", "")
+        body = part.get("body", {})
+
+        # text/plain
+        if mime == "text/plain" and "data" in body:
+            decoded = base64.urlsafe_b64decode(body["data"]).decode("utf-8", errors="ignore")
+            text += decoded + "\n"
+
+        # text/html
+        elif mime == "text/html" and "data" in body:
+            decoded = base64.urlsafe_b64decode(body["data"]).decode("utf-8", errors="ignore")
+            html += decoded + "\n"
+
+        # multipart/*
+        elif mime.startswith("multipart/") and "parts" in part:
+            for sub in part["parts"]:
+                process_part(sub)
+
+    # Start processing from root payload
+    process_part(payload)
+
+    return text.strip() + "\n" + html.strip()
 
 
 
@@ -133,6 +146,8 @@ def get_plain_text(msg_id):
     sender  = next((h["value"] for h in headers if h["name"].lower() == "from"), "")
     snippet = full_msg.get("snippet", "")
     body = extract_text_from_payload(payload)
+
+    print(f"{subject}\n{sender}\n{snippet}\n{body}")
 
     return f"{subject}\n{sender}\n{snippet}\n{body}"
 
@@ -242,9 +257,9 @@ def single_message_matcher(msg_id,
         if DEBUG:
             print("--------------------------------------------")
             metadata = get_message_metadata(service, msg_id)
+            print(f"Processing Message ID: {msg_id}")
             print(f"Subject: {metadata['subject']}")
             print(f"Sender: {metadata['sender']}")
-            print(f"Text length: {text_length}")
 
         # === NEW DOMAIN LOGIC ===
         sender_domain = extract_sender_domain(sender)
