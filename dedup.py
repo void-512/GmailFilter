@@ -14,7 +14,6 @@ def deduplicate_by_order_id(db_path="matches.db"):
             SELECT id FROM (
                 SELECT id
                 FROM matched_messages AS mm
-                WHERE mm.text_length IS NOT NULL
                 GROUP BY LOWER(mm.order_id)
                 HAVING mm.timestamp = MIN(mm.timestamp)
             )

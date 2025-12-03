@@ -1,7 +1,6 @@
 {
   "include_all_keywords": {
-    "filter1": ["thank you for your purchase", " order ", "confirmation", "receipt", "invoice", "tracking number", "transaction receipt", "shipping details", "Has Been Processed", "shipped", 
-    "Shipment Details"]
+    "filter1": ["thank you for your purchase", "order confirmed", "confirmation", "receipt", "invoice", "tracking number", "order delivered", "transaction receipt", "order summary", "order details", "shipping details", "order status", "order update", "order processing", "order received", "order placed", "order completed", "order fulfilled", "order dispatched", "order in transit", "order out for delivery", "Has Been Processed", "your order", "shipped"]
 },
   "exclude_any_keywords": ["shipment-tracking@amazon.com", "order-update@amazon.com", "digital-no-reply@amazon.com", "shipment-tracking@amazon.ca", "payments-update@amazon.com", "store-news@amazon.com", "americanexpress.com"],
   "order_id_patterns": [
@@ -20,6 +19,7 @@
     "US\\d{8}",
     "ORDER\\s\\d{12}",
     "ORDER NUMBER\\s\\d{11}",
+    "ORDER NUMBER:\\s#\\d{8}",
     "ORDER NUMBER:\\s\\d{8}",
     "order\\W*#\\d{9}",
     "order\\W*#\\W*\\d{9}",

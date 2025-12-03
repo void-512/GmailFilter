@@ -11,17 +11,15 @@ from rich.console import Console
 from rich.table import Table
 from rich import box
 from datetime import datetime
-from config import DB_PATH
 
-def read_matches(db_path=DB_PATH):
+def read_matches(db_path="matches.db"):
     """Fetch all records from the matched_messages table."""
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
     # NEW: include return_flag
     cursor.execute("""
-        SELECT id, subject, sender, order_id, timestamp,
-               has_attachment, text_length, domain, return_flag
+        SELECT id, subject, sender, order_id, timestamp, domain
         FROM matched_messages
         ORDER BY timestamp DESC
     """)
@@ -48,22 +46,15 @@ def display_matches(matches):
     table.add_column("Sender", style="blue")
     table.add_column("Order ID", style="green")
     table.add_column("Timestamp", style="magenta")
-    table.add_column("Attachment", style="bright_blue", justify="center")
-    table.add_column("Text Length", style="dim", justify="right")
     table.add_column("Domain", style="purple")
-    table.add_column("Return", style="red", justify="center")   # NEW COLUMN
 
     if not matches:
         console.print("[red]No matched messages found in the database.[/red]")
         return
 
     for (
-        msg_id, subject, sender, order_id, timestamp,
-        has_attachment, text_length, domain, return_flag
+        msg_id, subject, sender, order_id, timestamp, domain
     ) in matches:
-
-        attachment = "Yes" if has_attachment else "—"
-        return_display = "Yes" if return_flag else "—"
 
         sender_display = sender if len(sender) < 40 else sender[:37] + "..."
 
@@ -73,10 +64,7 @@ def display_matches(matches):
             sender_display or "[dim]N/A[/dim]",
             order_id or "[dim]N/A[/dim]",
             format_timestamp(timestamp),
-            attachment,
-            str(text_length),
             domain or "[dim]N/A[/dim]",
-            return_display
         )
 
     console.print(table)

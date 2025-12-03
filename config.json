@@ -1,0 +1,11 @@
+{
+    "numMsgPerBatch": 5000,
+    "keywordFile": "keywords.json",
+    "scopes": "https://www.googleapis.com/auth/gmail.readonly",
+    "tokenFile": "token.json",
+    "credentialsFile": "credentials.json",
+    "dbPath": "matches.db",
+    "startDate": "2024/07/01",
+    "endDate": "2024/12/31",
+    "maxThreads": 8
+}
