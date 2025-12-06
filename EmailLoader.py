@@ -95,20 +95,21 @@ class Data:
         except Exception:
             pass
 
-    def _process_msg_thread(self, msg_id):
+    def _process_msg_thread(self, msg_id_list):
         """
         Worker function for each thread: fetch message, extract fields, push to Redis.
         """
         service = get_gmail_service()
-        msg = service.users().messages().get(userId="me", id=msg_id, format="full").execute()
-        payload = msg.get("payload", {})
-        headers = payload.get("headers", [])
+        for msg_id in msg_id_list:
+            msg = service.users().messages().get(userId="me", id=msg_id, format="full").execute()
+            payload = msg.get("payload", {})
+            headers = payload.get("headers", [])
 
-        self.redis.rpush("msg_id", msg_id)
-        self.redis.rpush("sender", next((h["value"] for h in headers if h["name"].lower() == "from"), ""))
-        self.redis.rpush("subject", next((h["value"] for h in headers if h["name"].lower() == "subject"), ""))
-        self.redis.rpush("timestamp", msg.get("internalDate", ""))
-        self.redis.rpush("text", self._get_text(msg))
+            self.redis.rpush("msg_id", msg_id)
+            self.redis.rpush("sender", next((h["value"] for h in headers if h["name"].lower() == "from"), ""))
+            self.redis.rpush("subject", next((h["value"] for h in headers if h["name"].lower() == "subject"), ""))
+            self.redis.rpush("timestamp", msg.get("internalDate", ""))
+            self.redis.rpush("text", self._get_text(msg))
 
     def _get_text(self, msg):
         text = ""
@@ -142,9 +143,10 @@ class Data:
         return msg.get("snippet", "") + "\n" + text.strip() + "\n" + html.strip()
 
     def _load_next_batch(self):
-        """
-        Loads the next batch, processes it, stores it in Redis.
-        """
+        def _chunk_list(lst, n):
+            k, m = divmod(len(lst), n)
+            return [lst[i*k + min(i, m):(i+1)*k + min(i+1, m)] for i in range(n)]
+
         for k in self.keys:
             self.redis.delete(k)
 
@@ -155,8 +157,13 @@ class Data:
         self.batch_idx += 1
         self.index = 0
 
+        groups = _chunk_list(batch, self.maxWorkers)
+
         with ThreadPoolExecutor(max_workers=self.maxWorkers) as executor:
-            futures = [executor.submit(self._process_msg_thread, msg_id) for msg_id in batch]
+            futures = [
+                executor.submit(self._process_msg_thread, group)
+                for group in groups if group
+            ]
             for f in as_completed(futures):
                 f.result()
 
