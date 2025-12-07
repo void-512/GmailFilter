@@ -8,64 +8,6 @@ from google.auth.transport.requests import Request
 from google_auth_oauthlib.flow import InstalledAppFlow
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-def get_gmail_service():
-    creds = None
-
-    with open("config.json", "r") as f:
-        config = json.load(f)
-    SCOPES = [config["scopes"]]
-    TOKEN_FILE = config["tokenFile"]
-    CREDENTIALS_FILE = config["credentialsFile"]
-
-    if os.path.exists(TOKEN_FILE):
-        creds = Credentials.from_authorized_user_file(TOKEN_FILE, SCOPES)
-
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_FILE, SCOPES)
-            try:
-                creds = flow.run_local_server(port=8888)
-            except Exception:
-                print("No Browser")
-                auth_url, _ = flow.authorization_url(prompt='consent')
-                print("Open browser with following link")
-                print(auth_url)
-        with open(TOKEN_FILE, 'w') as token:
-            token.write(creds.to_json())
-
-    return build('gmail', 'v1', credentials=creds)
-
-def get_all_msg_id():
-    service = get_gmail_service()
-    with open("config.json", "r") as f:
-        config = json.load(f)
-    startDate = config["startDate"]
-    endDate = config["endDate"]
-    numWorkers = config["maxThreads"]
-    
-    query = f"after:{startDate} before:{endDate}"
-    
-    all_messages = []
-    page_token = None
-
-    while True:
-        response = service.users().messages().list(
-            userId='me',
-            q=query,
-            maxResults=500,
-            pageToken=page_token
-        ).execute()
-
-        all_messages.extend(response.get('messages', []))
-
-        page_token = response.get('nextPageToken')
-        if not page_token:
-            break
-
-    return [msg['id'] for msg in all_messages]
-
 class Data:
     def __init__(self):
         self.lock = threading.Lock()
@@ -75,7 +17,7 @@ class Data:
         self.maxWorkers = config["maxThreads"]
         self.records = []
 
-        self.msg_ids = get_all_msg_id()
+        self.msg_ids = self.__get_all_msg_id()
 
         self.msg_id_groups = [
             self.msg_ids[i:i + self.batchSize]
@@ -84,11 +26,69 @@ class Data:
         self.batch_idx = 0
         self.index = 0
 
-    def _process_msg_thread(self, msg_id_list):
+    def __get_gmail_service(self):
+        creds = None
+
+        with open("config.json", "r") as f:
+            config = json.load(f)
+        SCOPES = [config["scopes"]]
+        TOKEN_FILE = config["tokenFile"]
+        CREDENTIALS_FILE = config["credentialsFile"]
+
+        if os.path.exists(TOKEN_FILE):
+            creds = Credentials.from_authorized_user_file(TOKEN_FILE, SCOPES)
+
+        if not creds or not creds.valid:
+            if creds and creds.expired and creds.refresh_token:
+                creds.refresh(Request())
+            else:
+                flow = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_FILE, SCOPES)
+                try:
+                    creds = flow.run_local_server(port=8888)
+                except Exception:
+                    print("No Browser")
+                    auth_url, _ = flow.authorization_url(prompt='consent')
+                    print("Open browser with following link")
+                    print(auth_url)
+            with open(TOKEN_FILE, 'w') as token:
+                token.write(creds.to_json())
+
+        return build('gmail', 'v1', credentials=creds)
+
+    def __get_all_msg_id(self):
+        service = self.__get_gmail_service()
+        with open("config.json", "r") as f:
+            config = json.load(f)
+        startDate = config["startDate"]
+        endDate = config["endDate"]
+        numWorkers = config["maxThreads"]
+        
+        query = f"after:{startDate} before:{endDate}"
+        
+        all_messages = []
+        page_token = None
+
+        while True:
+            response = service.users().messages().list(
+                userId='me',
+                q=query,
+                maxResults=500,
+                pageToken=page_token
+            ).execute()
+
+            all_messages.extend(response.get('messages', []))
+
+            page_token = response.get('nextPageToken')
+            if not page_token:
+                break
+
+        return [msg['id'] for msg in all_messages]
+
+    def __process_msg_thread(self, msg_id_list):
         """
         Worker function for each thread: fetch message, extract fields, push to records.
         """
-        service = get_gmail_service()
+        service = self.__get_gmail_service()
         for msg_id in msg_id_list:
             msg = service.users().messages().get(userId="me", id=msg_id, format="full").execute()
             payload = msg.get("payload", {})
@@ -99,10 +99,10 @@ class Data:
                 "sender": next((h["value"] for h in headers if h["name"].lower() == "from"), ""),
                 "subject": next((h["value"] for h in headers if h["name"].lower() == "subject"), ""),
                 "timestamp": msg.get("internalDate", ""),
-                "text": self._get_text(msg)
+                "text": self.__get_text(msg)
             })
 
-    def _get_text(self, msg):
+    def __get_text(self, msg):
         text = ""
         html = ""
 
@@ -133,8 +133,8 @@ class Data:
 
         return msg.get("snippet", "") + "\n" + text.strip() + "\n" + html.strip()
 
-    def _load_next_batch(self):
-        def _chunk_list(lst, n):
+    def __load_next_batch(self):
+        def chunk_list(lst, n):
             k, m = divmod(len(lst), n)
             return [lst[i*k + min(i, m):(i+1)*k + min(i+1, m)] for i in range(n)]
 
@@ -147,26 +147,23 @@ class Data:
         self.batch_idx += 1
         self.index = 0
 
-        groups = _chunk_list(batch, self.maxWorkers)
+        groups = chunk_list(batch, self.maxWorkers)
 
         with ThreadPoolExecutor(max_workers=self.maxWorkers) as executor:
             futures = [
-                executor.submit(self._process_msg_thread, group)
+                executor.submit(self.__process_msg_thread, group)
                 for group in groups if group
             ]
             for f in as_completed(futures):
                 f.result()
 
-    def _get_record(self, index):
-        return self.records[index]
-
     def get_next(self):
         with self.lock:
             if self.index >= len(self.records):
-                self._load_next_batch()
+                self.__load_next_batch()
                 if len(self.records) == 0:
                     return None
                 print(f"Loaded batch {self.batch_idx}/{len(self.msg_id_groups)}")
-            record = self._get_record(self.index)
+            result = self.records[self.index]
             self.index += 1
-            return record
+            return result
