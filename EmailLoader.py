@@ -1,6 +1,5 @@
 import os
 import json
-import redis
 import base64
 import threading
 from googleapiclient.discovery import build
@@ -74,6 +73,7 @@ class Data:
             config = json.load(f)
         self.batchSize = config["numMsgPerBatch"]
         self.maxWorkers = config["maxThreads"]
+        self.records = []
 
         self.msg_ids = get_all_msg_id()
 
@@ -84,20 +84,9 @@ class Data:
         self.batch_idx = 0
         self.index = 0
 
-        self.keys = ["msg_id", "sender", "subject", "timestamp", "text"]
-
-        self.redis = redis.Redis(host='localhost', port=6379, db=1, decode_responses=True)
-        self.redis.flushdb()
-
-    def __del__(self):
-        try:
-            self.redis.flushdb()
-        except Exception:
-            pass
-
     def _process_msg_thread(self, msg_id_list):
         """
-        Worker function for each thread: fetch message, extract fields, push to Redis.
+        Worker function for each thread: fetch message, extract fields, push to records.
         """
         service = get_gmail_service()
         for msg_id in msg_id_list:
@@ -105,11 +94,13 @@ class Data:
             payload = msg.get("payload", {})
             headers = payload.get("headers", [])
 
-            self.redis.rpush("msg_id", msg_id)
-            self.redis.rpush("sender", next((h["value"] for h in headers if h["name"].lower() == "from"), ""))
-            self.redis.rpush("subject", next((h["value"] for h in headers if h["name"].lower() == "subject"), ""))
-            self.redis.rpush("timestamp", msg.get("internalDate", ""))
-            self.redis.rpush("text", self._get_text(msg))
+            self.records.append({
+                "msg_id": msg_id,
+                "sender": next((h["value"] for h in headers if h["name"].lower() == "from"), ""),
+                "subject": next((h["value"] for h in headers if h["name"].lower() == "subject"), ""),
+                "timestamp": msg.get("internalDate", ""),
+                "text": self._get_text(msg)
+            })
 
     def _get_text(self, msg):
         text = ""
@@ -147,8 +138,7 @@ class Data:
             k, m = divmod(len(lst), n)
             return [lst[i*k + min(i, m):(i+1)*k + min(i+1, m)] for i in range(n)]
 
-        for k in self.keys:
-            self.redis.delete(k)
+        self.records = []
 
         if self.batch_idx >= len(self.msg_id_groups):
             return None
@@ -168,19 +158,13 @@ class Data:
                 f.result()
 
     def _get_record(self, index):
-        return {
-            "msg_id": self.redis.lindex("msg_id", index),
-            "sender": self.redis.lindex("sender", index),
-            "subject": self.redis.lindex("subject", index),
-            "timestamp": self.redis.lindex("timestamp", index),
-            "text": self.redis.lindex("text", index)
-        }
+        return self.records[index]
 
     def get_next(self):
         with self.lock:
-            if self.index >= self.redis.llen("msg_id"):
+            if self.index >= len(self.records):
                 self._load_next_batch()
-                if self.redis.llen("msg_id") == 0:
+                if len(self.records) == 0:
                     return None
                 print(f"Loaded batch {self.batch_idx}/{len(self.msg_id_groups)}")
             record = self._get_record(self.index)
