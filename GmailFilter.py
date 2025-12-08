@@ -6,7 +6,7 @@ import uvicorn
 
 def start_fastapi():
     uvicorn.run(
-        "NewIDReceiver:app",
+        "WebServer:app",
         host="0.0.0.0",
         port=1111,
         reload=False,
