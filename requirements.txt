@@ -1,8 +1,8 @@
-reddis
+fastapi
 requests
 rich
 google-api-python-client
 google-auth
 google-auth-httplib2
 google-auth-oauthlib
-pysqlite3
+uvicorn
