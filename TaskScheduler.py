@@ -1,0 +1,31 @@
+import queue
+import threading
+from NewUsrHandler import NewUsrHandler
+from EmailLoader import Data
+from Filters import Filter
+
+class TaskScheduler:
+    def __init__(self):
+        self.instant_update_queue = queue.Queue()
+        self.new_usr_listener = self.__start_new_usr_listener()
+        self.data = Data()
+        self.filter_instance = Filter()
+        
+
+    def __start_new_usr_listener(self):
+        new_usr_handler = NewUsrHandler(self.instant_update_queue)
+        new_usr_thread = threading.Thread(target=new_usr_handler.listen_new_usr)
+        new_usr_thread.daemon = True
+        new_usr_thread.start()
+        return new_usr_thread
+
+    def instant_update(self):
+        while True:
+            try:
+                bubble_user_id = self.instant_update_queue.get()
+                print(f"Processing new bubble user id: {bubble_user_id}")
+                self.data.reset(bubble_user_id)
+                self.filter_instance.filter_messages(self.data)
+
+            except queue.Empty:
+                continue

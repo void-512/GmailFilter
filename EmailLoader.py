@@ -1,7 +1,11 @@
 import os
 import json
+import time
 import base64
+import sqlite3
 import threading
+import requests
+from datetime import datetime
 from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
@@ -15,16 +19,101 @@ class Data:
             config = json.load(f)
         self.batchSize = config["numMsgPerBatch"]
         self.maxWorkers = config["maxThreads"]
+        self.db_path = config["dbPath"]
+        self.token = None
+        self.expire_date = None
+        self.latest_timestamp = None
         self.records = []
+        self.__init_db()
 
+        self.msg_ids = None
+
+        self.msg_id_groups = None
+        self.batch_idx = 0
+        self.index = 0
+
+    def __init_db(self):
+        """Create table if it does not exist."""
+        conn = sqlite3.connect(self.db_path)
+        cur = conn.cursor()
+
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS bubble_users (
+                bubble_id TEXT PRIMARY KEY,
+                token TEXT,
+                expire_date INTEGER,
+                latest_timestamp INTEGER
+            )
+            """
+        )
+
+        conn.commit()
+        conn.close()
+
+    def reset(self, bubble_user_id):
+        """
+        Load token, expire_date, and latest_timestamp for the given bubble user.
+        """
+        conn = sqlite3.connect(self.db_path)
+        cur = conn.cursor()
+
+        cur.execute(
+            """
+            SELECT token, expire_date, latest_timestamp
+            FROM bubble_users
+            WHERE bubble_id = ?
+            """,
+            (bubble_user_id,)
+        )
+
+        row = cur.fetchone()
+        conn.close()
+
+        self.token, self.expire_date, self.latest_timestamp = row
+        print(self.token)
+        print(self.expire_date)
+        print(self.latest_timestamp)
+
+        if not self.token or self.expire_date < int(time.time()):
+            self.get_token(bubble_user_id)
+        
         self.msg_ids = self.__get_all_msg_id()
-
         self.msg_id_groups = [
             self.msg_ids[i:i + self.batchSize]
             for i in range(0, len(self.msg_ids), self.batchSize)
         ]
-        self.batch_idx = 0
-        self.index = 0
+
+
+
+    def get_token(self, bubble_user_id):
+        url = "https://auth.garde-robe.com/auth/token"
+        params = {"bubble_user_id": bubble_user_id}
+
+        session = requests.Session()
+        session.auth = ("chege", "1234")
+
+        response = session.get(url, params=params, allow_redirects=True)
+        self.token = response.json().get("access_token")
+        self.expire_date = response.json().get("expire_date")
+
+        conn = sqlite3.connect(self.db_path)
+        cur = conn.cursor()
+
+        cur.execute(
+            """
+            INSERT INTO bubble_users (bubble_id, token, expire_date, latest_timestamp)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(bubble_id) DO UPDATE SET
+                token = excluded.token,
+                expire_date = excluded.expire_date
+            """,
+            (bubble_user_id, self.token, self.expire_date, None)
+        )
+
+        conn.commit()
+        conn.close()
+
 
     def __get_gmail_service(self):
         creds = None
@@ -35,33 +124,22 @@ class Data:
         TOKEN_FILE = config["tokenFile"]
         CREDENTIALS_FILE = config["credentialsFile"]
 
-        if os.path.exists(TOKEN_FILE):
-            creds = Credentials.from_authorized_user_file(TOKEN_FILE, SCOPES)
-
-        if not creds or not creds.valid:
-            if creds and creds.expired and creds.refresh_token:
-                creds.refresh(Request())
-            else:
-                flow = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_FILE, SCOPES)
-                try:
-                    creds = flow.run_local_server(port=8888)
-                except Exception:
-                    print("No Browser")
-                    auth_url, _ = flow.authorization_url(prompt='consent')
-                    print("Open browser with following link")
-                    print(auth_url)
-            with open(TOKEN_FILE, 'w') as token:
-                token.write(creds.to_json())
+        creds = Credentials(token=self.token, scopes=SCOPES)
 
         return build('gmail', 'v1', credentials=creds)
 
     def __get_all_msg_id(self):
         service = self.__get_gmail_service()
-        with open("config.json", "r") as f:
-            config = json.load(f)
-        startDate = config["startDate"]
-        endDate = config["endDate"]
-        numWorkers = config["maxThreads"]
+        if self.latest_timestamp:
+            start_dt = datetime.utcfromtimestamp(self.latest_timestamp / 1000)
+        else:
+            # No timestamp in DB → fetch everything
+            start_dt = datetime.utcfromtimestamp(1672531200)
+
+        startDate = start_dt.strftime("%Y/%m/%d")
+
+        # Today’s date in required format
+        endDate = datetime.utcnow().strftime("%Y/%m/%d")
         
         query = f"after:{startDate} before:{endDate}"
         
@@ -156,6 +234,8 @@ class Data:
             ]
             for f in as_completed(futures):
                 f.result()
+
+    
 
     def get_next(self):
         with self.lock:
