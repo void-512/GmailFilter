@@ -1,7 +1,7 @@
+import logging
 from fastapi import FastAPI
 from pydantic import BaseModel
 from NewUsrHandler import new_usr_queue
-import logging
 
 app = FastAPI()
 

@@ -1,4 +1,3 @@
-import os
 import json
 import time
 import base64
@@ -9,8 +8,6 @@ import requests
 from datetime import datetime
 from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
-from google.auth.transport.requests import Request
-from google_auth_oauthlib.flow import InstalledAppFlow
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 class Data:
@@ -110,7 +107,7 @@ class Data:
             (self.bubble_user_id, self.token, self.expire_date, None)
         )
 
-        logging.info(f"Updated token for user {self.bubble_user_id}.")
+        logging.info(f"Updated token for user {self.bubble_user_id}")
 
         conn.commit()
         conn.close()

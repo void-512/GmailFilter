@@ -1,9 +1,9 @@
 import queue
-import threading
 import logging
-from NewUsrHandler import NewUsrHandler
-from EmailLoader import Data
+import threading
 from Filters import Filter
+from EmailLoader import Data
+from NewUsrHandler import NewUsrHandler
 
 class TaskScheduler:
     def __init__(self):
@@ -11,7 +11,6 @@ class TaskScheduler:
         self.new_usr_listener = self.__start_new_usr_listener()
         self.data = Data()
         self.filter_instance = Filter()
-        
 
     def __start_new_usr_listener(self):
         new_usr_handler = NewUsrHandler(self.instant_update_queue)

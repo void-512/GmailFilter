@@ -1,7 +1,7 @@
-import queue
 import json
-import sqlite3
+import queue
 import logging
+import sqlite3
 from datetime import datetime
 
 new_usr_queue = queue.Queue()

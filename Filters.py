@@ -3,7 +3,6 @@ import os
 import json
 import sqlite3
 import logging
-from datetime import datetime
 from email.utils import parseaddr
 from DownStreamSender import send_payload
 from concurrent.futures import ThreadPoolExecutor
@@ -196,7 +195,7 @@ class Filter:
                 for f in futures:
                     f.result()
 
-        logging.info("Fetching completed.")
+            logging.info("Fetching completed")
 
         except Exception as e:
             logging.error(f"Error in filter_messages: {e}")

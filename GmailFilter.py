@@ -1,9 +1,7 @@
-from EmailLoader import Data
-from Filters import Filter
-from TaskScheduler import TaskScheduler
-import threading 
-import uvicorn
 import logging
+import uvicorn
+import threading
+from TaskScheduler import TaskScheduler
 
 logging.basicConfig(level=logging.INFO)
 
