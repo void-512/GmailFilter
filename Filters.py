@@ -15,7 +15,7 @@ class Filter:
         with open("config.json", "r") as f:
                 config = json.load(f)
 
-        self.max_threads = config["maxThreads"]
+        self.maxWorkers = config["maxThreads"]
         self.__create_conn()
         self.include_all_compiled, \
         self.exclude_any_compiled, \
@@ -184,14 +184,13 @@ class Filter:
             while True:
                 msg = data.get_next()
                 if msg is None:
-                    return     # no more data
+                    return
                 self.__single_message_matcher(msg)
 
         try:
-            with ThreadPoolExecutor(max_workers=self.max_threads) as executor:
-                futures = [executor.submit(worker) for _ in range(self.max_threads)]
+            with ThreadPoolExecutor(max_workers=self.maxWorkers) as executor:
+                futures = [executor.submit(worker) for _ in range(self.maxWorkers)]
 
-                # Wait for all threads
                 for f in futures:
                     f.result()
 
