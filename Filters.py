@@ -141,7 +141,7 @@ class Filter:
             if matched_domain is None:
                 return
 
-            combined_text = f"{msg_detail['subject']}\n{msg_detail['sender']}\n{msg_detail['text']}"
+            combined_text = f"{msg_detail['subject']}\n{msg_detail['sender']}\n{msg_detail['text']}\n{msg_detail['html']}"
             # keyword filtering
             if self.__match_by_keywords(combined_text):
                 if self.DEBUG:

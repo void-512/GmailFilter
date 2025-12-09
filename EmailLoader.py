@@ -168,13 +168,16 @@ class Data:
             timestamp = msg.get("internalDate", "")
             if self.latest_timestamp and int(timestamp) >= self.latest_timestamp:
                 self.latest_timestamp = int(timestamp)
+            
+            plain_text, html_text = self.__get_text(msg)
 
             self.records.append({
                 "msg_id": msg_id,
                 "sender": next((h["value"] for h in headers if h["name"].lower() == "from"), ""),
                 "subject": next((h["value"] for h in headers if h["name"].lower() == "subject"), ""),
                 "timestamp": timestamp,
-                "text": self.__get_text(msg)
+                "text": plain_text,
+                "html": html_text
             })
 
     def __get_text(self, msg):
@@ -206,7 +209,7 @@ class Data:
 
         process_part(payload)
 
-        return msg.get("snippet", "") + "\n" + text.strip() + "\n" + html.strip()
+        return msg.get("snippet", "") + "\n" + text.strip(), html.strip()
 
     def __update_user_timestamp_and_expire(self):
         """Write latest_timestamp and expire_date to database."""
