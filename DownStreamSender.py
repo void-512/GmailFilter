@@ -4,10 +4,11 @@ import requests
 from datetime import datetime, timezone
 
 def send_payload(subject, sender, text, html, timestamp):
+    CODE_LENGTH = 6
     dt = datetime.fromtimestamp(int(timestamp) / 1000, tz=timezone.utc)
     iso_date = dt.isoformat().replace("+00:00", "Z")
 
-    code = ''.join(random.choices(string.ascii_uppercase, k=6))
+    code = ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(CODE_LENGTH))
     
     formatted_subject = f"<<{sender}>>||{code}|| {subject}"
     
@@ -21,7 +22,7 @@ def send_payload(subject, sender, text, html, timestamp):
             }
         }
     ]
-    
+
     url = "https://clients-shared-101.helixautomation.dev/webhook/garde-robe/process_email"
     response = requests.post(url, json=payload)
 
