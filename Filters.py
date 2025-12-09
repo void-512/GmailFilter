@@ -15,7 +15,7 @@ class Filter:
                 config = json.load(f)
 
         self.max_threads = config["maxThreads"]
-        # self._create_conn()
+        self._create_conn()
         self.include_all_compiled, \
         self.exclude_any_compiled, \
         self.order_id_patterns, \
@@ -24,7 +24,7 @@ class Filter:
     def _create_conn(self):
         with open("config.json", "r") as f:
             config = json.load(f)
-        db_path = config["dbPath"]
+        db_path = "matches.db"
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         cursor.execute("""
@@ -106,7 +106,7 @@ class Filter:
             with open("config.json", "r") as f:
                 config = json.load(f)
 
-            db_path = config["dbPath"]
+            db_path = "matches.db"
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
             cursor.execute("""
@@ -154,7 +154,7 @@ class Filter:
                         if self.DEBUG:
                             print(f"Order ID match found: {match.group(0).strip()}")
                         order_id = match.group(0).strip()
-                        '''
+                        
                         self._insert_match({
                             "msg_id": msg_detail['msg_id'],
                             "subject": msg_detail['subject'],
@@ -163,7 +163,7 @@ class Filter:
                             "domain": matched_domain,
                             "timestamp": msg_detail['timestamp']
                         })
-                        '''
+                        
                         break
 
         except Exception as e:

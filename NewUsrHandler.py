@@ -1,6 +1,7 @@
 import queue
 import json
 import sqlite3
+from datetime import datetime
 
 new_usr_queue = queue.Queue()
 
@@ -9,6 +10,8 @@ class NewUsrHandler:
         with open("config.json", "r") as f:
             config = json.load(f)
         self.db_path = config["dbPath"]
+        dt = datetime.strptime(config["defaultStartDate"], "%Y/%m/%d")
+        self.defaultStartDate = int(dt.timestamp())
         self.instant_update_queue = instant_update_queue
         self.__init_db()
 
@@ -42,7 +45,7 @@ class NewUsrHandler:
             (bubble_id, token, expire_date, latest_timestamp)
             VALUES (?, ?, ?, ?)
             """,
-            (bubble_user_id, None, 1672531200, 1672531200)
+            (bubble_user_id, None, 0, self.defaultStartDate)
         )
 
         conn.commit()

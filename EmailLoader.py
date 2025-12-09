@@ -20,6 +20,7 @@ class Data:
         self.batchSize = config["numMsgPerBatch"]
         self.maxWorkers = config["maxThreads"]
         self.db_path = config["dbPath"]
+        self.bubble_user_id = None
         self.token = None
         self.expire_date = None
         self.latest_timestamp = None
@@ -55,6 +56,7 @@ class Data:
         """
         Load token, expire_date, and latest_timestamp for the given bubble user.
         """
+        self.bubble_user_id = bubble_user_id
         conn = sqlite3.connect(self.db_path)
         cur = conn.cursor()
 
@@ -64,19 +66,16 @@ class Data:
             FROM bubble_users
             WHERE bubble_id = ?
             """,
-            (bubble_user_id,)
+            (self.bubble_user_id,)
         )
 
         row = cur.fetchone()
         conn.close()
 
         self.token, self.expire_date, self.latest_timestamp = row
-        print(self.token)
-        print(self.expire_date)
-        print(self.latest_timestamp)
 
         if not self.token or self.expire_date < int(time.time()):
-            self.get_token(bubble_user_id)
+            self.get_token()
         
         self.msg_ids = self.__get_all_msg_id()
         self.msg_id_groups = [
@@ -86,16 +85,16 @@ class Data:
 
 
 
-    def get_token(self, bubble_user_id):
+    def get_token(self):
         url = "https://auth.garde-robe.com/auth/token"
-        params = {"bubble_user_id": bubble_user_id}
+        params = {"bubble_user_id": self.bubble_user_id}
 
         session = requests.Session()
         session.auth = ("chege", "1234")
 
         response = session.get(url, params=params, allow_redirects=True)
         self.token = response.json().get("access_token")
-        self.expire_date = response.json().get("expire_date")
+        self.expire_date = response.json().get("expiry_date")
 
         conn = sqlite3.connect(self.db_path)
         cur = conn.cursor()
@@ -108,7 +107,7 @@ class Data:
                 token = excluded.token,
                 expire_date = excluded.expire_date
             """,
-            (bubble_user_id, self.token, self.expire_date, None)
+            (self.bubble_user_id, self.token, self.expire_date, None)
         )
 
         conn.commit()
@@ -121,20 +120,14 @@ class Data:
         with open("config.json", "r") as f:
             config = json.load(f)
         SCOPES = [config["scopes"]]
-        TOKEN_FILE = config["tokenFile"]
-        CREDENTIALS_FILE = config["credentialsFile"]
 
         creds = Credentials(token=self.token, scopes=SCOPES)
 
-        return build('gmail', 'v1', credentials=creds)
+        return build('gmail', 'v1', credentials=creds, cache_discovery=False)
 
     def __get_all_msg_id(self):
         service = self.__get_gmail_service()
-        if self.latest_timestamp:
-            start_dt = datetime.utcfromtimestamp(self.latest_timestamp / 1000)
-        else:
-            # No timestamp in DB → fetch everything
-            start_dt = datetime.utcfromtimestamp(1672531200)
+        start_dt = datetime.utcfromtimestamp(self.latest_timestamp)
 
         startDate = start_dt.strftime("%Y/%m/%d")
 
@@ -172,11 +165,15 @@ class Data:
             payload = msg.get("payload", {})
             headers = payload.get("headers", [])
 
+            timestamp = msg.get("internalDate", "")
+            if self.latest_timestamp and int(timestamp) >= self.latest_timestamp:
+                self.latest_timestamp = int(timestamp)
+
             self.records.append({
                 "msg_id": msg_id,
                 "sender": next((h["value"] for h in headers if h["name"].lower() == "from"), ""),
                 "subject": next((h["value"] for h in headers if h["name"].lower() == "subject"), ""),
-                "timestamp": msg.get("internalDate", ""),
+                "timestamp": timestamp,
                 "text": self.__get_text(msg)
             })
 
@@ -211,6 +208,26 @@ class Data:
 
         return msg.get("snippet", "") + "\n" + text.strip() + "\n" + html.strip()
 
+    def __update_user_timestamp_and_expire(self):
+        """Write latest_timestamp and expire_date to database."""
+        conn = sqlite3.connect(self.db_path)
+        cur = conn.cursor()
+
+        cur.execute(
+            """
+            UPDATE bubble_users
+            SET latest_timestamp = ?, expire_date = ?
+            WHERE bubble_id = ?
+            """,
+            (self.latest_timestamp / 1000, self.expire_date, self.bubble_user_id)
+        )
+
+        conn.commit()
+        conn.close()
+
+        print(f"[DB] Updated user {self.bubble_user_id} timestamps.")
+
+
     def __load_next_batch(self):
         def chunk_list(lst, n):
             k, m = divmod(len(lst), n)
@@ -234,8 +251,8 @@ class Data:
             ]
             for f in as_completed(futures):
                 f.result()
-
-    
+        
+        self.__update_user_timestamp_and_expire()
 
     def get_next(self):
         with self.lock:
