@@ -15,13 +15,12 @@ class Filter:
                 config = json.load(f)
 
         self.max_threads = config["maxThreads"]
-        self._create_conn()
+        self.__create_conn()
         self.include_all_compiled, \
         self.exclude_any_compiled, \
         self.order_id_patterns, \
-        self.domain_keywords = self._load_keywords()
-
-    def _create_conn(self):
+        self.domain_keywords = self.__load_keywords()
+    def __create_conn(self):
         with open("config.json", "r") as f:
             config = json.load(f)
         db_path = "matches.db"
@@ -40,7 +39,7 @@ class Filter:
         conn.commit()
         conn.close()
 
-    def _load_keywords(self):
+    def __load_keywords(self):
         with open("config.json", "r") as f:
             config = json.load(f)
         kw_path = config["keywordFile"]
@@ -70,7 +69,7 @@ class Filter:
 
         return include_all_compiled, exclude_any_compiled, order_id_patterns, domain_keywords
 
-    def _extract_sender_domain(self, sender):
+    def __extract_sender_domain(self, sender):
         _, email = parseaddr(sender)
         
         if "@" not in email:
@@ -79,7 +78,7 @@ class Filter:
         # Everything after @
         return email.split("@", 1)[1].lower().strip()
 
-    def _match_by_keywords(self, text):
+    def __match_by_keywords(self, text):
         if self.exclude_any_compiled and self.exclude_any_compiled.search(text):
             if self.DEBUG:
                 print("Excluded by keyword")
@@ -93,7 +92,7 @@ class Filter:
 
         return True
 
-    def _insert_match(self, metadata):
+    def __insert_match(self, metadata):
 
         try:
             msg_id = metadata["msg_id"]
@@ -120,7 +119,7 @@ class Filter:
         except Exception as e:
             print(f"⚠️ Error inserting match {msg_id}: {e}")
 
-    def _single_message_matcher(self, msg_detail):
+    def __single_message_matcher(self, msg_detail):
 
         try:
             if self.DEBUG:
@@ -130,7 +129,7 @@ class Filter:
                 print(f"Sender: {msg_detail['sender']}")
 
             # === domain matcher ===
-            sender_domain = self._extract_sender_domain(msg_detail['sender'])
+            sender_domain = self.__extract_sender_domain(msg_detail['sender'])
             matched_domain = None
             for word in self.domain_keywords:
                 if word in sender_domain:
@@ -144,7 +143,7 @@ class Filter:
 
             combined_text = f"{msg_detail['subject']}\n{msg_detail['sender']}\n{msg_detail['text']}"
             # keyword filtering
-            if self._match_by_keywords(combined_text):
+            if self.__match_by_keywords(combined_text):
                 if self.DEBUG:
                     print(f"Keyword match found")
                 # order ID matcher
@@ -155,7 +154,7 @@ class Filter:
                             print(f"Order ID match found: {match.group(0).strip()}")
                         order_id = match.group(0).strip()
                         
-                        self._insert_match({
+                        self.__insert_match({
                             "msg_id": msg_detail['msg_id'],
                             "subject": msg_detail['subject'],
                             "order_id": order_id,
@@ -176,7 +175,7 @@ class Filter:
                 msg = data.get_next()
                 if msg is None:
                     return     # no more data
-                self._single_message_matcher(msg)
+                self.__single_message_matcher(msg)
 
         try:
             with ThreadPoolExecutor(max_workers=self.max_threads) as executor:
