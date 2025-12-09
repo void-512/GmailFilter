@@ -72,7 +72,7 @@ class Data:
 
         self.token, self.expire_date, self.latest_timestamp = row
 
-        if not self.token or self.expire_date < int(time.time()):
+        if not self.token or self.expire_date / 1000 < int(time.time()):
             self.get_token()
         
         self.msg_ids = self.__get_all_msg_id()
