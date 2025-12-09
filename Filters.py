@@ -2,8 +2,10 @@ import re
 import os
 import json
 import sqlite3
+import logging
 from datetime import datetime
 from email.utils import parseaddr
+from DownStreamSender import send_payload
 from concurrent.futures import ThreadPoolExecutor
 
 
@@ -81,13 +83,13 @@ class Filter:
     def __match_by_keywords(self, text):
         if self.exclude_any_compiled and self.exclude_any_compiled.search(text):
             if self.DEBUG:
-                print("Excluded by keyword")
+                logging.info("Excluded by keyword")
             return False
 
         for _, patterns in self.include_all_compiled.items():
             if not any(p.search(text) for p in patterns):
                 if self.DEBUG:
-                    print("Excluded by missing keyword in block")
+                    logging.info("Excluded by missing keyword in block")
                 return False
 
         return True
@@ -117,16 +119,16 @@ class Filter:
             conn.close()
 
         except Exception as e:
-            print(f"⚠️ Error inserting match {msg_id}: {e}")
+            logging.error(f"Error inserting match {msg_id}: {e}")
 
     def __single_message_matcher(self, msg_detail):
 
         try:
             if self.DEBUG:
-                print("--------------------------------------------")
-                print(f"Processing Message ID: {msg_detail['msg_id']}")
-                print(f"Subject: {msg_detail['subject']}")
-                print(f"Sender: {msg_detail['sender']}")
+                logging.info("--------------------------------------------")
+                logging.info(f"Processing Message ID: {msg_detail['msg_id']}")
+                logging.info(f"Subject: {msg_detail['subject']}")
+                logging.info(f"Sender: {msg_detail['sender']}")
 
             # === domain matcher ===
             sender_domain = self.__extract_sender_domain(msg_detail['sender'])
@@ -135,7 +137,7 @@ class Filter:
                 if word in sender_domain:
                     matched_domain = word
                     if self.DEBUG:
-                        print(f"Matched domain: {matched_domain}")
+                        logging.info(f"Matched domain: {matched_domain}")
                     break
 
             if matched_domain is None:
@@ -145,15 +147,23 @@ class Filter:
             # keyword filtering
             if self.__match_by_keywords(combined_text):
                 if self.DEBUG:
-                    print(f"Keyword match found")
+                    logging.info(f"Keyword match found")
                 # order ID matcher
                 for pat in self.order_id_patterns:
                     match = re.search(pat, combined_text, flags=re.IGNORECASE)
                     if match:
                         if self.DEBUG:
-                            print(f"Order ID match found: {match.group(0).strip()}")
+                            logging.info(f"Order ID match found: {match.group(0).strip()}")
                         order_id = match.group(0).strip()
                         
+                        send_payload(
+                            subject=msg_detail['subject'],
+                            sender=msg_detail['sender'],
+                            text=msg_detail['text'],
+                            html=msg_detail['html'],
+                            timestamp=msg_detail['timestamp']
+                        )
+                        '''
                         self.__insert_match({
                             "msg_id": msg_detail['msg_id'],
                             "subject": msg_detail['subject'],
@@ -162,11 +172,12 @@ class Filter:
                             "domain": matched_domain,
                             "timestamp": msg_detail['timestamp']
                         })
+                        '''
                         
                         break
 
         except Exception as e:
-            print(f"⚠️ Error in filter_helper with msg_id {msg_detail['msg_id']}: {e}")
+            logging.error(f"Error in filter_helper with msg_id {msg_detail['msg_id']}: {e}")
 
     def filter_messages(self, data):
 
@@ -185,5 +196,7 @@ class Filter:
                 for f in futures:
                     f.result()
 
+        logging.info("Fetching completed.")
+
         except Exception as e:
-            print(f"⚠️ Error in filter_messages: {e}")
+            logging.error(f"Error in filter_messages: {e}")

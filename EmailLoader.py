@@ -4,6 +4,7 @@ import time
 import base64
 import sqlite3
 import threading
+import logging
 import requests
 from datetime import datetime
 from googleapiclient.discovery import build
@@ -84,7 +85,6 @@ class Data:
         ]
 
 
-
     def get_token(self):
         url = "https://auth.garde-robe.com/auth/token"
         params = {"bubble_user_id": self.bubble_user_id}
@@ -109,6 +109,8 @@ class Data:
             """,
             (self.bubble_user_id, self.token, self.expire_date, None)
         )
+
+        logging.info(f"Updated token for user {self.bubble_user_id}.")
 
         conn.commit()
         conn.close()
@@ -228,8 +230,6 @@ class Data:
         conn.commit()
         conn.close()
 
-        print(f"[DB] Updated user {self.bubble_user_id} timestamps.")
-
 
     def __load_next_batch(self):
         def chunk_list(lst, n):
@@ -263,7 +263,7 @@ class Data:
                 self.__load_next_batch()
                 if len(self.records) == 0:
                     return None
-                print(f"Loaded batch {self.batch_idx}/{len(self.msg_id_groups)}")
+                logging.info(f"Loaded batch {self.batch_idx}/{len(self.msg_id_groups)}")
             result = self.records[self.index]
             self.index += 1
             return result

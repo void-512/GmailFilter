@@ -5,8 +5,6 @@ import logging
 
 app = FastAPI()
 
-logging.basicConfig(level=logging.INFO)
-
 class UserData(BaseModel):
     bubble_user_id: str
 

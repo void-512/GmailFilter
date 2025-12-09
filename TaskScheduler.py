@@ -1,5 +1,6 @@
 import queue
 import threading
+import logging
 from NewUsrHandler import NewUsrHandler
 from EmailLoader import Data
 from Filters import Filter
@@ -23,7 +24,7 @@ class TaskScheduler:
         while True:
             try:
                 bubble_user_id = self.instant_update_queue.get()
-                print(f"Processing new bubble user id: {bubble_user_id}")
+                logging.info(f"Processing new bubble user id: {bubble_user_id}")
                 self.data.reset(bubble_user_id)
                 self.filter_instance.filter_messages(self.data)
 

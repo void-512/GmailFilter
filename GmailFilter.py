@@ -3,6 +3,9 @@ from Filters import Filter
 from TaskScheduler import TaskScheduler
 import threading 
 import uvicorn
+import logging
+
+logging.basicConfig(level=logging.INFO)
 
 def start_fastapi():
     uvicorn.run(

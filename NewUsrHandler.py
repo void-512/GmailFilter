@@ -1,6 +1,7 @@
 import queue
 import json
 import sqlite3
+import logging
 from datetime import datetime
 
 new_usr_queue = queue.Queue()
@@ -55,7 +56,7 @@ class NewUsrHandler:
         while True:
             try:
                 bubble_user_id = new_usr_queue.get()
-                print(f"Processing new bubble user id: {bubble_user_id}")
+                logging.info(f"Received new bubble user id: {bubble_user_id}")
 
                 # Insert into database
                 self.__insert_new_user(bubble_user_id)
