@@ -24,7 +24,10 @@ class TaskScheduler:
             try:
                 bubble_user_id = self.instant_update_queue.get()
                 logging.info(f"Processing new bubble user id: {bubble_user_id}")
-                self.data.reset(bubble_user_id)
+                reset_state = self.data.reset(bubble_user_id)
+                if not reset_state:
+                    logging.warning(f"Bubble ID: {bubble_user_id} invalid, skipping")
+                    continue
                 self.filter_instance.filter_messages(self.data)
 
             except queue.Empty:

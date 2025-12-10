@@ -52,35 +52,47 @@ class Data:
 
     def reset(self, bubble_user_id):
         """
-        Load token, expire_date, and latest_timestamp for the given bubble user.
+        Load or refresh token, expire_date, and latest_timestamp for the given bubble user.
         """
         self.bubble_user_id = bubble_user_id
-        conn = sqlite3.connect(self.db_path)
-        cur = conn.cursor()
 
-        cur.execute(
-            """
-            SELECT token, expire_date, latest_timestamp
-            FROM bubble_users
-            WHERE bubble_id = ?
-            """,
-            (self.bubble_user_id,)
-        )
-
-        row = cur.fetchone()
-        conn.close()
-
-        self.token, self.expire_date, self.latest_timestamp = row
-
-        if not self.token or self.expire_date / 1000 < int(time.time()):
-            self.get_token()
+        with sqlite3.connect(self.db_path) as conn:
+            cur = conn.cursor()
+            cur.execute(
+                """
+                SELECT token, expire_date, latest_timestamp
+                FROM bubble_users
+                WHERE bubble_id = ?
+                """,
+                (self.bubble_user_id,)
+            )
+            row = cur.fetchone()
         
+        token, expire_date, latest_ts = row if row else (None, None, None)
+
+        if not token or expire_date / 1000 < int(time.time()):
+            reset_state = self.get_token()
+            if not reset_state:
+                logging.error(f"Failed to get token for bubble user id: {self.bubble_user_id}")
+                with sqlite3.connect(self.db_path) as conn:
+                    conn.execute(
+                        "DELETE FROM bubble_users WHERE bubble_id = ? OR bubble_id IS NULL",
+                        (self.bubble_user_id,)
+                    )
+                return False
+
+        else:
+            self.token = token
+            self.expire_date = expire_date
+            self.latest_timestamp = latest_ts
+
         self.msg_ids = self.__get_all_msg_id()
         self.msg_id_groups = [
             self.msg_ids[i:i + self.batchSize]
             for i in range(0, len(self.msg_ids), self.batchSize)
         ]
 
+        return True
 
     def get_token(self):
         url = "https://auth.garde-robe.com/auth/token"
@@ -89,28 +101,43 @@ class Data:
         session = requests.Session()
         session.auth = ("chege", "1234")
 
-        response = session.get(url, params=params, allow_redirects=True)
-        self.token = response.json().get("access_token")
-        self.expire_date = response.json().get("expiry_date")
+        try:
+            response = session.get(url, params=params, allow_redirects=True)
+        except requests.RequestException as e:
+            logging.error(f"Network error while requesting token: {e}")
+            return False
 
-        conn = sqlite3.connect(self.db_path)
-        cur = conn.cursor()
+        if not response.ok:
+            logging.error(f"Token request failed with status {response.status_code}: {response.text}")
+            return False
 
-        cur.execute(
-            """
-            INSERT INTO bubble_users (bubble_id, token, expire_date, latest_timestamp)
-            VALUES (?, ?, ?, ?)
-            ON CONFLICT(bubble_id) DO UPDATE SET
-                token = excluded.token,
-                expire_date = excluded.expire_date
-            """,
-            (self.bubble_user_id, self.token, self.expire_date, None)
-        )
+        try:
+            data = response.json()
+        except ValueError:
+            logging.error(f"Token endpoint returned invalid JSON: {response.text}")
+            return False
+
+        token = data.get("access_token")
+        expiry = data.get("expiry_date")
+
+        self.token = token
+        self.expire_date = expiry
+
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute(
+                """
+                INSERT INTO bubble_users (bubble_id, token, expire_date, latest_timestamp)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(bubble_id) DO UPDATE SET
+                    token = excluded.token,
+                    expire_date = excluded.expire_date
+                """,
+                (self.bubble_user_id, self.token, self.expire_date, self.defaultStartDate)
+            )
 
         logging.info(f"Updated token for user {self.bubble_user_id}")
 
-        conn.commit()
-        conn.close()
+        return True
 
 
     def __get_gmail_service(self):
@@ -130,7 +157,6 @@ class Data:
 
         startDate = start_dt.strftime("%Y/%m/%d")
 
-        # Today’s date in required format
         endDate = datetime.utcnow().strftime("%Y/%m/%d")
         
         query = f"after:{startDate} before:{endDate}"
