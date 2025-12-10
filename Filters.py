@@ -158,7 +158,7 @@ class Filter:
                         send_payload(
                             subject=msg_detail['subject'],
                             sender=msg_detail['sender'],
-                            text=msg_detail['text'],
+                            current_user=msg_detail['current_user'],
                             html=msg_detail['html'],
                             timestamp=msg_detail['timestamp']
                         )

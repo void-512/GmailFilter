@@ -22,6 +22,7 @@ class Data:
         self.token = None
         self.expire_date = None
         self.latest_timestamp = None
+        self.current_user = None
         self.records = []
         self.__init_db()
 
@@ -68,9 +69,9 @@ class Data:
             )
             row = cur.fetchone()
         
-        token, expire_date, latest_ts = row if row else (None, None, None)
+        self.token, self.expire_date, self.latest_timestamp = row if row else (None, None, None)
 
-        if not token or expire_date / 1000 < int(time.time()):
+        if not self.token or self.expire_date / 1000 < int(time.time()):
             reset_state = self.get_token()
             if not reset_state:
                 logging.error(f"Failed to get token for bubble user id: {self.bubble_user_id}")
@@ -80,11 +81,6 @@ class Data:
                         (self.bubble_user_id,)
                     )
                 return False
-
-        else:
-            self.token = token
-            self.expire_date = expire_date
-            self.latest_timestamp = latest_ts
 
         self.msg_ids = self.__get_all_msg_id()
         self.msg_id_groups = [
@@ -124,17 +120,19 @@ class Data:
         self.expire_date = expiry
 
         with sqlite3.connect(self.db_path) as conn:
-            conn.execute(
+            cursor = conn.execute(
                 """
-                INSERT INTO bubble_users (bubble_id, token, expire_date, latest_timestamp)
-                VALUES (?, ?, ?, ?)
-                ON CONFLICT(bubble_id) DO UPDATE SET
-                    token = excluded.token,
-                    expire_date = excluded.expire_date
+                UPDATE bubble_users
+                SET token = ?, expire_date = ?
+                WHERE bubble_id = ?
                 """,
-                (self.bubble_user_id, self.token, self.expire_date, self.defaultStartDate)
+                (self.token, self.expire_date, self.bubble_user_id)
             )
 
+        if cursor.rowcount == 0:
+            logging.info(f"No user found with bubble_id {self.bubble_user_id}, not updating token")
+            return False
+        
         logging.info(f"Updated token for user {self.bubble_user_id}")
 
         return True
@@ -153,10 +151,12 @@ class Data:
 
     def __get_all_msg_id(self):
         service = self.__get_gmail_service()
+
+        profile = service.users().getProfile(userId="me").execute()
+        self.current_user = profile.get("emailAddress")
+
         start_dt = datetime.utcfromtimestamp(self.latest_timestamp)
-
         startDate = start_dt.strftime("%Y/%m/%d")
-
         endDate = datetime.utcnow().strftime("%Y/%m/%d")
         
         query = f"after:{startDate} before:{endDate}"
@@ -198,6 +198,7 @@ class Data:
 
             self.records.append({
                 "msg_id": msg_id,
+                "current_user": self.current_user,
                 "sender": next((h["value"] for h in headers if h["name"].lower() == "from"), ""),
                 "subject": next((h["value"] for h in headers if h["name"].lower() == "subject"), ""),
                 "timestamp": timestamp,
