@@ -18,8 +18,6 @@ def send_payload(subject, sender, current_user, html, timestamp):
         "textAsHTML": html,
     }
 
-    print(payload)
-
     url = "https://clients-shared-101.helixautomation.dev/webhook/garde-robe/process_email"
     response = requests.post(url, json=payload)
 
