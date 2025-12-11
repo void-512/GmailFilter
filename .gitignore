@@ -1,0 +1,5 @@
+credentials*
+token*
+__pycache__
+*.db
+auth.json

@@ -94,8 +94,10 @@ class Data:
         url = "https://auth.garde-robe.com/auth/token"
         params = {"bubble_user_id": self.bubble_user_id}
 
+        with open("auth.json", "r") as f:
+            auth = json.load(f)
         session = requests.Session()
-        session.auth = ("chege", "1234")
+        session.auth = (auth["auth_endpoint"]["user"], auth["auth_endpoint"]["pwd"])
 
         try:
             response = session.get(url, params=params, allow_redirects=True)
