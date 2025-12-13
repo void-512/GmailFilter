@@ -2,11 +2,10 @@
 
 ## Overview
 
-This project is an **email ingestion and filtering system**, one of the core service in the workflow of Garde Robe.
+This project is an **email ingestion and filtering system**, one of the core service in the workflow of Garde Robe
 
-The system automatically fetches emails from users, applies configurable keyword and pattern-based filters, extracts structured information, and forwards matched results to downstream services.
+The system automatically fetches emails from users, applies configurable keyword and pattern-based filters, extracts structured information, and forwards matched results to downstream services
 
----
 
 ## Usage
 
@@ -40,7 +39,7 @@ The project includes 3 config files: **auth.json**, **config.json**, and **keywo
   "maxThreads": 8
 }
 ```
-- **numMsgPerBatch**: Number of messages fetched and processed per batch. (higher value may slightly increase performance, with a higher RAM usage)
+- **numMsgPerBatch**: Number of messages fetched and processed per batch (higher value may slightly increase performance, with a higher RAM usage)
 - **keywordFile**: Path to the keyword and pattern configuration file used by the filtering engine
 - **scopes**: Gmail API OAuth scope used for email access
 - **dbPath**: SQLite database file storing user metadata and processing state
@@ -68,30 +67,47 @@ The project includes 3 config files: **auth.json**, **config.json**, and **keywo
 
 ## API Documentation
 
-### Endpoint Overview
-
-This service exposes a single HTTP endpoint used to register a new user and trigger email processing.
+### Endpoint
 
 - **URL**: `/`
 - **Method**: `POST`
 - **Authentication**: HTTP Basic Authentication
 - **Content-Type**: `application/json`
 
----
-
-### Authentication
+#### Authentication
 
 The endpoint is protected using **HTTP Basic Auth**.
 
 - Username and password are validated server-side against values stored in `auth.json`
 - Requests without valid credentials will receive `401 Unauthorized`
 
----
 
-### Request Body
+#### Request Body
 
 ```json
 {
   "bubble_user_id": "string"
 }
+```
+
+### Token Acquisition
+
+#### Overview
+
+The system retrieves Gmail OAuth access tokens for each user via internal authentication service
+Expire dates will be stored internally, refresh request will be made only when expire date passes
+
+
+#### Token Source
+
+- **Endpoint**: [Internal authentication service ](https://auth.garde-robe.com/auth/token) 
+- **Method**: `GET`
+- **Authentication**: HTTP Basic Authentication, authenticated with *auth_endpoint* in *auth.json*
+- **Purpose**: Exchange a `bubble_user_id` for a Gmail OAuth access token
+
+
+#### Request Parameters
+
+```http
+GET /auth/token?bubble_user_id=<USER_ID>
 ```
