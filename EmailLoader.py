@@ -72,7 +72,7 @@ class Data:
         self.token, self.expire_date, self.latest_timestamp = row if row else (None, None, None)
 
         if not self.token or self.expire_date / 1000 < int(time.time()):
-            reset_state = self.get_token()
+            reset_state = self.__get_token()
             if not reset_state:
                 logging.error(f"Failed to get token for bubble user id: {self.bubble_user_id}")
                 with sqlite3.connect(self.db_path) as conn:
@@ -90,7 +90,7 @@ class Data:
 
         return True
 
-    def get_token(self):
+    def __get_token(self):
         url = "https://auth.garde-robe.com/auth/token"
         params = {"bubble_user_id": self.bubble_user_id}
 
