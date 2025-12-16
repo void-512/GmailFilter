@@ -4,6 +4,7 @@ from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel
 from NewUsrHandler import new_usr_queue
+from UsrDeleter import delete_queue
 
 security = HTTPBasic()
 app = FastAPI()
@@ -32,3 +33,11 @@ async def receive_id(data: UserData, user: str = Depends(authenticate)):
 
     new_usr_queue.put(data.bubble_user_id)
     return {"status": "ok"}
+
+@app.post("/delete/")
+async def delete_id(data: UserData, user: str = Depends(authenticate)):
+    logging.info(f"Authenticated request from: {user}")
+    logging.info(f"Received delete request for id: {data.bubble_user_id}")
+
+    delete_queue.put(data.bubble_user_id)
+    return {"status": "deleted"}

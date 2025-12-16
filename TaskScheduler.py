@@ -4,6 +4,7 @@ import threading
 from Filters import Filter
 from EmailLoader import Data
 from NewUsrHandler import NewUsrHandler
+from UsrDeleter import UsrDeleter
 
 class TaskScheduler:
     def __init__(self):
@@ -11,6 +12,7 @@ class TaskScheduler:
         self.new_usr_listener = self.__start_new_usr_listener()
         self.data = Data()
         self.filter_instance = Filter()
+        self.delete_usr_listener = self.__start_delete_usr_listener()
 
     def __start_new_usr_listener(self):
         new_usr_handler = NewUsrHandler(self.instant_update_queue)
@@ -18,6 +20,13 @@ class TaskScheduler:
         new_usr_thread.daemon = True
         new_usr_thread.start()
         return new_usr_thread
+
+    def __start_delete_usr_listener(self):
+        usr_deleter = UsrDeleter()
+        delete_usr_thread = threading.Thread(target=usr_deleter.listen_delete_usr)
+        delete_usr_thread.daemon = True
+        delete_usr_thread.start()
+        return delete_usr_thread
 
     def instant_update(self):
         while True:
