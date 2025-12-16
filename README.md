@@ -69,10 +69,30 @@ The project includes 3 config files: **auth.json**, **config.json**, and **keywo
 
 ### Endpoint
 
+#### New User
 - **URL**: `/`
 - **Method**: `POST`
 - **Authentication**: HTTP Basic Authentication
 - **Content-Type**: `application/json`
+- **Request Body**:
+```json
+{
+  "bubble_user_id": "string"
+}
+```
+
+#### Delete User
+- **URL**: `/delete/`
+- **Method**: `POST`
+- **Authentication**: HTTP Basic Authentication
+- **Content-Type**: `application/json`
+
+- **Request Body**:
+```json
+{
+  "bubble_user_id": "string"
+}
+```
 
 #### Authentication
 
@@ -81,14 +101,6 @@ The endpoint is protected using **HTTP Basic Auth**.
 - Username and password are validated server-side against values stored in `auth.json`
 - Requests without valid credentials will receive `401 Unauthorized`
 
-
-#### Request Body
-
-```json
-{
-  "bubble_user_id": "string"
-}
-```
 
 ### Token Acquisition
 
