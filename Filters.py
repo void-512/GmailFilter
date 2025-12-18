@@ -160,6 +160,7 @@ class Filter:
                             sender=msg_detail['sender'],
                             current_user=msg_detail['current_user'],
                             html=msg_detail['html'],
+                            text=msg_detail['text'],
                             timestamp=msg_detail['timestamp']
                         )
                         '''
