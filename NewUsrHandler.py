@@ -3,6 +3,7 @@ import queue
 import logging
 import sqlite3
 from datetime import datetime
+from dateutil.relativedelta import relativedelta
 
 new_usr_queue = queue.Queue()
 
@@ -10,9 +11,13 @@ class NewUsrHandler:
     def __init__(self, instant_update_queue):
         with open("config.json", "r") as f:
             config = json.load(f)
+
         self.db_path = config["dbPath"]
-        dt = datetime.strptime(config["defaultStartDate"], "%Y/%m/%d")
-        self.defaultStartDate = int(dt.timestamp())
+
+        months_ago = int(config["defaultStartMonthsAgo"])
+        start_dt = datetime.now() - relativedelta(months=months_ago)
+        self.defaultStartDate = int(start_dt.timestamp())
+
         self.instant_update_queue = instant_update_queue
         self.__init_db()
 
