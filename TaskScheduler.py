@@ -1,3 +1,4 @@
+import json
 import queue
 import logging
 import threading
@@ -15,12 +16,16 @@ class TaskScheduler:
         self.filter_instance = Filter()
         self.delete_usr_listener = self.__start_delete_usr_listener()
 
+        with open("config.json", "r") as f:
+            config = json.load(f)
+        update_hour = config["dailyIncrementalUpdateHour"]
+        update_minute = config["dailyIncrementalUpdateMinute"]
         scheduler = BackgroundScheduler()
         scheduler.add_job(
             self.__incremental_update,
             trigger="cron",
-            hour=2,
-            minute=30
+            hour=update_hour,
+            minute=update_minute
         )
         scheduler.start()
 

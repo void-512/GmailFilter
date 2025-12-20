@@ -5,5 +5,7 @@
     "dbPath": "users.db",
     "defaultStartMonthsAgo": 4,
     "maxThreads": 8,
-    "downstreamEndpoint": "https://clients-shared-101.helixautomation.dev/webhook/garde-robe/process_email"
+    "downstreamEndpoint": "https://clients-shared-101.helixautomation.dev/webhook/garde-robe/process_email",
+    "dailyIncrementalUpdateHour": 2,
+    "dailyIncrementalUpdateMinute": 30
 }
