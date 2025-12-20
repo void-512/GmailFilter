@@ -46,5 +46,6 @@ class UsrDeleter:
 
                 self.__delete_usr(bubble_user_id)
 
-            except queue.Empty:
+            except Exception as e:
+                logging.error(f"Error deleting bubble user id {bubble_user_id}: {e}")
                 continue

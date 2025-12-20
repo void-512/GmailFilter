@@ -29,6 +29,7 @@ class TaskScheduler:
         return delete_usr_thread
 
     def instant_update(self):
+        bubble_user_id = None
         while True:
             try:
                 bubble_user_id = self.instant_update_queue.get()
@@ -39,5 +40,6 @@ class TaskScheduler:
                     continue
                 self.filter_instance.filter_messages(self.data)
 
-            except queue.Empty:
+            except Exception as e:
+                logging.error(f"Error processing bubble user id {bubble_user_id}: {e}")
                 continue
