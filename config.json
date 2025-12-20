@@ -3,6 +3,6 @@
     "keywordFile": "keywords.json",
     "scopes": "https://www.googleapis.com/auth/gmail.readonly",
     "dbPath": "users.db",
-    "defaultStartDate": "2025/10/01",
+    "defaultStartMonthsAgo": 4,
     "maxThreads": 8
 }
