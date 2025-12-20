@@ -4,5 +4,6 @@
     "scopes": "https://www.googleapis.com/auth/gmail.readonly",
     "dbPath": "users.db",
     "defaultStartMonthsAgo": 4,
-    "maxThreads": 8
+    "maxThreads": 8,
+    "downstreamEndpoint": "https://clients-shared-101.helixautomation.dev/webhook/garde-robe/process_email"
 }
