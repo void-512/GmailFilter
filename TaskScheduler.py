@@ -3,8 +3,9 @@ import logging
 import threading
 from Filters import Filter
 from EmailLoader import Data
-from NewUsrHandler import NewUsrHandler
 from UsrDeleter import UsrDeleter
+from NewUsrHandler import NewUsrHandler
+from apscheduler.schedulers.background import BackgroundScheduler
 
 class TaskScheduler:
     def __init__(self):
@@ -13,6 +14,15 @@ class TaskScheduler:
         self.data = Data()
         self.filter_instance = Filter()
         self.delete_usr_listener = self.__start_delete_usr_listener()
+
+        scheduler = BackgroundScheduler()
+        scheduler.add_job(
+            self.__incremental_update,
+            trigger="cron",
+            hour=2,
+            minute=30
+        )
+        scheduler.start()
 
     def __start_new_usr_listener(self):
         new_usr_handler = NewUsrHandler(self.instant_update_queue)
@@ -27,6 +37,11 @@ class TaskScheduler:
         delete_usr_thread.daemon = True
         delete_usr_thread.start()
         return delete_usr_thread
+
+    def __incremental_update(self):
+        bubble_user_ids = self.data.get_all_bubble_user_ids()
+        for bubble_user_id in bubble_user_ids:
+            self.instant_update_queue.put(bubble_user_id)
 
     def instant_update(self):
         bubble_user_id = None

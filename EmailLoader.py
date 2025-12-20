@@ -2,9 +2,9 @@ import json
 import time
 import base64
 import sqlite3
-import threading
 import logging
 import requests
+import threading
 from datetime import datetime
 from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
@@ -299,3 +299,10 @@ class Data:
             result = self.records[self.index]
             self.index += 1
             return result
+
+    def get_all_bubble_user_ids(self):
+        with sqlite3.connect(self.db_path) as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT bubble_id FROM bubble_users")
+            rows = cur.fetchall()
+        return [row[0] for row in rows]
