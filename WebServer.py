@@ -28,7 +28,6 @@ def authenticate(credentials: HTTPBasicCredentials = Depends(security)):
 
 @app.post("/")
 async def receive_id(data: UserData, user: str = Depends(authenticate)):
-    logging.info(f"Authenticated request from: {user}")
     logging.info(f"Received new id: {data.bubble_user_id}")
 
     new_usr_queue.put(data.bubble_user_id)
@@ -36,7 +35,6 @@ async def receive_id(data: UserData, user: str = Depends(authenticate)):
 
 @app.post("/delete/")
 async def delete_id(data: UserData, user: str = Depends(authenticate)):
-    logging.info(f"Authenticated request from: {user}")
     logging.info(f"Received delete request for id: {data.bubble_user_id}")
 
     delete_queue.put(data.bubble_user_id)
