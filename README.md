@@ -35,7 +35,7 @@ The project includes 3 config files: **auth.json**, **config.json**, and **keywo
   "keywordFile": "keywords.json",
   "scopes": "https://www.googleapis.com/auth/gmail.readonly",
   "dbPath": "users.db",
-  "defaultStartDate": "2023/01/01",
+  "defaultStartMonthsAgo": 6,
   "maxThreads": 8
 }
 ```
@@ -43,7 +43,7 @@ The project includes 3 config files: **auth.json**, **config.json**, and **keywo
 - **keywordFile**: Path to the keyword and pattern configuration file used by the filtering engine
 - **scopes**: Gmail API OAuth scope used for email access
 - **dbPath**: SQLite database file storing user metadata and processing state
-- **defaultStartDate**: Initial email fetch start date for newly onboarded users
+- **defaultStartMonthsAgo**: Fetching the email *n* months before today
 - **maxThreads**: Maximum number of worker threads used for concurrent processing
 
  #### keywords.json
