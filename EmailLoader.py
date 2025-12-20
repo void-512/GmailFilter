@@ -51,11 +51,18 @@ class Data:
         conn.commit()
         conn.close()
 
+    def get_current_user(self):
+        return self.current_user
+
     def reset(self, bubble_user_id):
         """
         Load or refresh token, expire_date, and latest_timestamp for the given bubble user.
         """
         self.bubble_user_id = bubble_user_id
+        self.batch_idx = 0
+        self.index = 0
+        self.records = []
+        self.current_user = None
 
         with sqlite3.connect(self.db_path) as conn:
             cur = conn.cursor()
@@ -200,7 +207,6 @@ class Data:
 
             self.records.append({
                 "msg_id": msg_id,
-                "current_user": self.current_user,
                 "sender": next((h["value"] for h in headers if h["name"].lower() == "from"), ""),
                 "subject": next((h["value"] for h in headers if h["name"].lower() == "subject"), ""),
                 "timestamp": timestamp,

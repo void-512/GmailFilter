@@ -21,6 +21,7 @@ class Filter:
         self.exclude_any_compiled, \
         self.order_id_patterns, \
         self.domain_keywords = self.__load_keywords()
+        self.current_user = None
     def __create_conn(self):
         with open("config.json", "r") as f:
             config = json.load(f)
@@ -158,7 +159,7 @@ class Filter:
                         send_payload(
                             subject=msg_detail['subject'],
                             sender=msg_detail['sender'],
-                            current_user=msg_detail['current_user'],
+                            current_user=self.current_user,
                             html=msg_detail['html'],
                             text=msg_detail['text'],
                             timestamp=msg_detail['timestamp']
@@ -180,6 +181,7 @@ class Filter:
             logging.error(f"Error in filter_helper with msg_id {msg_detail['msg_id']}: {e}")
 
     def filter_messages(self, data):
+        self.current_user = data.get_current_user()
 
         def worker():
             while True:
