@@ -1,5 +1,7 @@
+import os
 import json
 import time
+import json
 import base64
 import sqlite3
 import logging
@@ -13,10 +15,15 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 class Data:
     def __init__(self):
         self.lock = threading.Lock()
+        self.DEBUG = os.getenv("DEBUG", "0") == "1"
         with open("config.json", "r") as f:
             config = json.load(f)
+        if self.DEBUG:
+            debug_cfg = config.get("debug", {})
+            self.startDate = debug_cfg.get("startDate")
+            self.endDate = debug_cfg.get("endDate")
+        self.maxWorkers = 1 if self.DEBUG else config["maxThreads"]
         self.batchSize = config["numMsgPerBatch"]
-        self.maxWorkers = config["maxThreads"]
         self.db_path = config["dbPath"]
         self.bubble_user_id = None
         self.token = None
@@ -168,6 +175,9 @@ class Data:
         startDate = start_dt.strftime("%Y/%m/%d")
         endDate = datetime.utcnow().strftime("%Y/%m/%d")
         
+        if self.DEBUG:
+            startDate = self.startDate
+            endDate = self.endDate
         query = f"after:{startDate} before:{endDate}"
         
         all_messages = []

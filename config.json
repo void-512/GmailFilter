@@ -3,9 +3,13 @@
     "keywordFile": "keywords.json",
     "scopes": "https://www.googleapis.com/auth/gmail.readonly",
     "dbPath": "users.db",
-    "defaultStartMonthsAgo": 4,
+    "defaultStartMonthsAgo": 24,
     "maxThreads": 8,
     "downstreamEndpoint": "https://clients-shared-101.helixautomation.dev/webhook/garde-robe/process_email",
     "dailyIncrementalUpdateHour": 2,
-    "dailyIncrementalUpdateMinute": 30
+    "dailyIncrementalUpdateMinute": 30,
+    "debug": {
+        "startDate": "2024/01/15",
+        "endDate": "2024/01/16"
+    }
 }

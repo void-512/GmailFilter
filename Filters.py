@@ -125,13 +125,17 @@ class Filter:
             logging.error(f"Error inserting match {msg_id}: {e}")
 
     def __single_message_matcher(self, msg_detail):
-
+        combined_text = f"{msg_detail['subject']}\n{msg_detail['sender']}\n{msg_detail['text']}\n{msg_detail['html']}"
         try:
             if self.DEBUG:
                 logging.info("--------------------------------------------")
                 logging.info(f"Processing Message ID: {msg_detail['msg_id']}")
+                logging.info(f"Timestamp: {msg_detail['timestamp']}")
                 logging.info(f"Subject: {msg_detail['subject']}")
                 logging.info(f"Sender: {msg_detail['sender']}")
+                os.makedirs("debug", exist_ok=True)
+                with open(f"debug/payload{msg_detail['timestamp']}.html", "w") as f:
+                    f.write(combined_text)
 
             # === domain matcher ===
             sender_domain = self.__extract_sender_domain(msg_detail['sender'])
@@ -146,7 +150,6 @@ class Filter:
             if matched_domain is None:
                 return
 
-            combined_text = f"{msg_detail['subject']}\n{msg_detail['sender']}\n{msg_detail['text']}\n{msg_detail['html']}"
             # keyword filtering
             if self.__match_by_keywords(combined_text):
                 if self.DEBUG:

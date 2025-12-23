@@ -1,3 +1,4 @@
+import os
 import json
 import time
 import random
@@ -113,10 +114,11 @@ def send_payload(subject, sender, current_user, html, text, timestamp):
             }
         }
     ]
-
-    with open(f"payload{timestamp}-{int(time.time())}.html", "w") as f:
-        f.write(html)
     
+    if os.getenv("DEBUG", "0") == "1":
+        with open(f"payload{timestamp}-{int(time.time())}.html", "w") as f:
+            f.write(html)
+
     response = requests.post(url, json=payload)
 
     return response.status_code, response.text
