@@ -10,7 +10,7 @@ with open("config.json", "r") as f:
 url = config["downstreamEndpoint"]
 
 def send_payload(subject, sender, current_user, html, text, timestamp):
-    CODE_LENGTH = 6
+    CODE_LENGTH = 8
     dt = datetime.fromtimestamp(int(timestamp) / 1000, tz=timezone.utc)
     iso_date = dt.isoformat().replace("+00:00", "Z")
 
@@ -113,6 +113,9 @@ def send_payload(subject, sender, current_user, html, text, timestamp):
             }
         }
     ]
+
+    with open(f"payload{timestamp}-{int(time.time())}.html", "w") as f:
+        f.write(html)
     
     response = requests.post(url, json=payload)
 
