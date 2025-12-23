@@ -3,6 +3,7 @@ import os
 import json
 import sqlite3
 import logging
+from Deduper import Deduper
 from email.utils import parseaddr
 from DownStreamSender import send_payload
 from concurrent.futures import ThreadPoolExecutor
@@ -22,6 +23,8 @@ class Filter:
         self.order_id_patterns, \
         self.domain_keywords = self.__load_keywords()
         self.current_user = None
+        self.deduper = Deduper()
+
     def __create_conn(self):
         with open("config.json", "r") as f:
             config = json.load(f)
@@ -155,6 +158,18 @@ class Filter:
                         if self.DEBUG:
                             logging.info(f"Order ID match found: {match.group(0).strip()}")
                         order_id = match.group(0).strip()
+
+                        '''
+                        self.deduper.emplace(
+                            subject=msg_detail['subject'],
+                            sender=msg_detail['sender'],
+                            current_user=self.current_user,
+                            html=msg_detail['html'],
+                            text=msg_detail['text'],
+                            timestamp=msg_detail['timestamp'],
+                            order_id=order_id
+                        )
+                        '''
                         
                         send_payload(
                             subject=msg_detail['subject'],
@@ -196,6 +211,10 @@ class Filter:
 
                 for f in futures:
                     f.result()
+
+            self.deduper.dedup()
+            self.deduper.send()
+            self.deduper.reset()
 
             logging.info("Fetching completed")
 
