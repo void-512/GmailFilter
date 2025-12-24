@@ -2,6 +2,7 @@ import json
 import queue
 import logging
 import sqlite3
+import watchtower
 
 delete_queue = queue.Queue()
 
@@ -10,6 +11,8 @@ class UsrDeleter:
         with open("config.json", "r") as f:
             config = json.load(f)
         self.db_path = config["dbPath"]
+        self.logger = logging.getLogger("UsrDeleter")
+        self.logger.addHandler(watchtower.CloudWatchLogHandler(log_group='Fetcher', stream_name='fetcher'))
 
     def __init_db(self):
         """Create table if it does not exist."""
@@ -36,16 +39,16 @@ class UsrDeleter:
                 "DELETE FROM bubble_users WHERE bubble_id = ?",
                 (bubble_user_id,)
             )
-        logging.info(f"Deleted user with bubble_id {bubble_user_id} from database")
+        self.logger.info(f"Deleted user with bubble_id {bubble_user_id} from database")
 
     def listen_delete_usr(self):
         while True:
             try:
                 bubble_user_id = delete_queue.get()
-                logging.info(f"Received delete request for bubble user id: {bubble_user_id}")
+                self.logger.info(f"Received delete request for bubble user id: {bubble_user_id}")
 
                 self.__delete_usr(bubble_user_id)
 
             except Exception as e:
-                logging.error(f"Error deleting bubble user id {bubble_user_id}: {e}")
+                self.logger.error(f"Error deleting bubble user id {bubble_user_id}: {e}")
                 continue

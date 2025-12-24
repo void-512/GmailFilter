@@ -4,6 +4,7 @@ import json
 import base64
 import sqlite3
 import logging
+import watchtower
 from email.utils import parseaddr
 from DownStreamSender import send_payload
 from concurrent.futures import ThreadPoolExecutor
@@ -194,9 +195,11 @@ class Filter:
                         break
 
         except Exception as e:
-            logging.error(f"Error in filter_helper with msg_id {msg_detail['msg_id']}: {e}")
+            logger_worker.error(f"Error in filter_helper with msg_id {msg_detail['msg_id']}: {e}")
 
     def filter_messages(self, data, update_type):
+        logger = logging.getLogger("Filter")
+        logger.addHandler(watchtower.CloudWatchLogHandler(log_group='Fetcher', stream_name='fetcher'))
         self.current_user = data.get_current_user()
         self.update_type = update_type
         self.full_update_magic_string = self.__acquire_magic_string() if update_type == "full" else None
@@ -215,7 +218,7 @@ class Filter:
                 for f in futures:
                     f.result()
 
-            logging.info("Fetching completed")
+            logger.info("Fetching completed")
 
         except Exception as e:
-            logging.error(f"Error in filter_messages: {e}")
+            logger.error(f"Error in filter_messages: {e}")

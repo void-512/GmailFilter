@@ -2,6 +2,7 @@ import json
 import queue
 import logging
 import threading
+import watchtower
 from Filters import Filter
 from EmailLoader import Data
 from UsrDeleter import UsrDeleter
@@ -53,18 +54,20 @@ class TaskScheduler:
 
     def instant_update(self):
         bubble_user_id = None
+        logger = logging.getLogger("TaskScheduler")
+        logger.addHandler(watchtower.CloudWatchLogHandler(log_group='Fetcher', stream_name='fetcher'))
         while True:
             try:
                 update_info = self.instant_update_queue.get()
                 bubble_user_id = update_info["bubble_user_id"]
                 update_type = update_info["type"]
-                logging.info(f"Processing new bubble user id: {bubble_user_id} with update type: {update_type}")
+                logger.info(f"Processing new bubble user id: {bubble_user_id} with update type: {update_type}")
                 reset_state = self.data.reset(bubble_user_id)
                 if not reset_state:
-                    logging.warning(f"Bubble ID: {bubble_user_id} invalid, skipping")
+                    logger.warning(f"Bubble ID: {bubble_user_id} invalid, skipping")
                     continue
                 self.filter_instance.filter_messages(self.data, update_type)
 
             except Exception as e:
-                logging.error(f"Error processing bubble user id {bubble_user_id}: {e}")
+                logger.error(f"Error processing bubble user id {bubble_user_id}: {e}")
                 continue

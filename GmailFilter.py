@@ -19,7 +19,6 @@ def start_fastapi():
     )
 
 if __name__ == "__main__":
-    # Start FastAPI server in a background thread
     fastapi_thread = threading.Thread(target=start_fastapi, daemon=True)
     fastapi_thread.start()
     task_scheduler = TaskScheduler()

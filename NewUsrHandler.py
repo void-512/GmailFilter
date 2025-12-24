@@ -2,6 +2,7 @@ import json
 import queue
 import logging
 import sqlite3
+import watchtower
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
@@ -58,10 +59,12 @@ class NewUsrHandler:
         conn.close()
 
     def listen_new_usr(self):
+        logger = logging.getLogger("NewUsrHandler")
+        logger.addHandler(watchtower.CloudWatchLogHandler(log_group='Fetcher', stream_name='fetcher'))
         while True:
             try:
                 bubble_user_id = new_usr_queue.get()
-                logging.info(f"Received new bubble user id: {bubble_user_id}")
+                logger.info(f"Received new bubble user id: {bubble_user_id}")
 
                 # Insert into database
                 self.__insert_new_user(bubble_user_id)

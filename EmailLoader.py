@@ -6,6 +6,7 @@ import base64
 import sqlite3
 import logging
 import requests
+import watchtower
 import threading
 from datetime import datetime
 from googleapiclient.discovery import build
@@ -71,6 +72,9 @@ class Data:
         self.records = []
         self.current_user = None
 
+        logger = logging.getLogger("DataReset")
+        logger.addHandler(watchtower.CloudWatchLogHandler(log_group='Fetcher', stream_name='fetcher'))
+
         with sqlite3.connect(self.db_path) as conn:
             cur = conn.cursor()
             cur.execute(
@@ -88,7 +92,7 @@ class Data:
         if not self.token or self.expire_date / 1000 < int(time.time()):
             reset_state = self.__get_token()
             if not reset_state:
-                logging.error(f"Failed to get token for bubble user id: {self.bubble_user_id}")
+                logger.error(f"Failed to get token for bubble user id: {self.bubble_user_id}")
                 with sqlite3.connect(self.db_path) as conn:
                     conn.execute(
                         "DELETE FROM bubble_users WHERE bubble_id = ? OR bubble_id IS NULL",
@@ -107,6 +111,8 @@ class Data:
     def __get_token(self):
         url = "https://auth.garde-robe.com/auth/token"
         params = {"bubble_user_id": self.bubble_user_id}
+        logger = logging.getLogger("GetToken")
+        logger.addHandler(watchtower.CloudWatchLogHandler(log_group='Fetcher', stream_name='fetcher'))
 
         with open("auth.json", "r") as f:
             auth = json.load(f)
@@ -116,17 +122,17 @@ class Data:
         try:
             response = session.get(url, params=params, allow_redirects=True)
         except requests.RequestException as e:
-            logging.error(f"Network error while requesting token: {e}")
+            logger.error(f"Network error while requesting token: {e}")
             return False
 
         if not response.ok:
-            logging.error(f"Token request failed with status {response.status_code}: {response.text}")
+            logger.error(f"Token request failed with status {response.status_code}: {response.text}")
             return False
 
         try:
             data = response.json()
         except ValueError:
-            logging.error(f"Token endpoint returned invalid JSON: {response.text}")
+            logger.error(f"Token endpoint returned invalid JSON: {response.text}")
             return False
 
         token = data.get("access_token")
@@ -146,10 +152,10 @@ class Data:
             )
 
         if cursor.rowcount == 0:
-            logging.info(f"No user found with bubble_id {self.bubble_user_id}, not updating token")
+            logger.info(f"No user found with bubble_id {self.bubble_user_id}, not updating token")
             return False
         
-        logging.info(f"Updated token for user {self.bubble_user_id}")
+        logger.info(f"Updated token for user {self.bubble_user_id}")
 
         return True
 
