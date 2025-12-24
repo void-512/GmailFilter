@@ -36,7 +36,11 @@ The project includes 3 config files: **auth.json**, **config.json**, and **keywo
   "scopes": "https://www.googleapis.com/auth/gmail.readonly",
   "dbPath": "users.db",
   "defaultStartMonthsAgo": 6,
-  "maxThreads": 8
+  "maxThreads": 8,
+  "debug": {
+    "startDate": "2024/01/15",
+    "endDate": "2024/01/16"
+  }
 }
 ```
 - **numMsgPerBatch**: Number of messages fetched and processed per batch (higher value may slightly increase performance, with a higher RAM usage)
@@ -45,6 +49,7 @@ The project includes 3 config files: **auth.json**, **config.json**, and **keywo
 - **dbPath**: SQLite database file storing user metadata and processing state
 - **defaultStartMonthsAgo**: Fetching the email *n* months before today
 - **maxThreads**: Maximum number of worker threads used for concurrent processing
+- **debug**: effective when debug mode enabled, see *Debug* section
 
  #### keywords.json
 ```json
@@ -123,3 +128,17 @@ Expire dates will be stored internally, refresh request will be made only when e
 ```http
 GET /auth/token?bubble_user_id=<USER_ID>
 ```
+
+## Debug
+
+Enable the debug mode with environmental variable *DEBUG*
+
+On Linux, this can be ```export DEBUG=1```
+
+Debug mode will do following things:
+
+- The *startDate* and *endDate* in config will replace *defaultStartMonthsAgo* to decide the gmail query interval
+- Detailed message info will be printed in log, including ```message_id, timestamp, subject, sender```, which of the 3 filters it has passed: ```domain, keyword, order id```, and whether it's blocked by ```excluding keywords```
+- *maxWorkers* will be set to 1 to ensure correct log output
+- For every email, the combined text, which is ```subject + html + text``` will be saved to folder *debug*. Timestamp in file name is the timestamp of this email
+- The ```html``` section in payload sent to the downstream service will be saved to folder *sent*. The first timestamp in file name is the timestamp of this email, the second timestamp is the time it's sent to the downstream service
