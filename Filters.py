@@ -1,6 +1,7 @@
 import re
 import os
 import json
+import base64
 import sqlite3
 import logging
 from email.utils import parseaddr
@@ -22,7 +23,9 @@ class Filter:
         self.order_id_patterns, \
         self.domain_keywords = self.__load_keywords()
         self.current_user = None
-        
+        self.update_type = None
+        self.full_update_magic_string = None
+
     def __create_conn(self):
         with open("config.json", "r") as f:
             config = json.load(f)
@@ -121,6 +124,9 @@ class Filter:
 
         except Exception as e:
             logging.error(f"Error inserting match {msg_id}: {e}")
+    
+    def __acquire_magic_string(self):
+        return base64.urlsafe_b64encode(os.urandom(16)).decode('utf-8').rstrip('=')
 
     def __single_message_matcher(self, msg_detail):
         combined_text = f"{msg_detail['subject']}\n{msg_detail['sender']}\n{msg_detail['text']}\n{msg_detail['html']}"
@@ -159,6 +165,11 @@ class Filter:
                         if self.DEBUG:
                             logging.info(f"Order ID match found: {match.group(0).strip()}")
                         order_id = match.group(0).strip()
+
+                        if self.update_type == "full":
+                            magic_string = self.full_update_magic_string
+                        else:
+                            magic_string = self.__acquire_magic_string()
                         
                         send_payload(
                             subject=msg_detail['subject'],
@@ -166,7 +177,8 @@ class Filter:
                             current_user=self.current_user,
                             html=msg_detail['html'],
                             text=msg_detail['text'],
-                            timestamp=msg_detail['timestamp']
+                            timestamp=msg_detail['timestamp'],
+                            magic_string=magic_string
                         )
                         '''
                         self.__insert_match({
@@ -184,8 +196,10 @@ class Filter:
         except Exception as e:
             logging.error(f"Error in filter_helper with msg_id {msg_detail['msg_id']}: {e}")
 
-    def filter_messages(self, data):
+    def filter_messages(self, data, update_type):
         self.current_user = data.get_current_user()
+        self.update_type = update_type
+        self.full_update_magic_string = self.__acquire_magic_string() if update_type == "full" else None
 
         def worker():
             while True:
