@@ -26,6 +26,8 @@ class Filter:
         self.current_user = None
         self.update_type = None
         self.full_update_magic_string = None
+        self.logger = logging.getLogger("Filters")
+        self.logger.addHandler(watchtower.CloudWatchLogHandler(log_group='Fetcher', stream_name='fetcher'))
 
     def __create_conn(self):
         with open("config.json", "r") as f:
@@ -195,11 +197,11 @@ class Filter:
                         break
 
         except Exception as e:
-            logger_worker.error(f"Error in filter_helper with msg_id {msg_detail['msg_id']}: {e}")
+            self.logger.error(f"Error in filter_helper with msg_id {msg_detail['msg_id']}: {e}")
 
     def filter_messages(self, data, update_type):
-        logger = logging.getLogger("Filter")
-        logger.addHandler(watchtower.CloudWatchLogHandler(log_group='Fetcher', stream_name='fetcher'))
+        self.logger = logging.getLogger("Filters")
+        self.logger.addHandler(watchtower.CloudWatchLogHandler(log_group='Fetcher', stream_name='fetcher'))
         self.current_user = data.get_current_user()
         self.update_type = update_type
         self.full_update_magic_string = self.__acquire_magic_string() if update_type == "full" else None
@@ -212,13 +214,15 @@ class Filter:
                 self.__single_message_matcher(msg)
 
         try:
+            start_time = time.monotonic()
             with ThreadPoolExecutor(max_workers=self.maxWorkers) as executor:
                 futures = [executor.submit(worker) for _ in range(self.maxWorkers)]
 
                 for f in futures:
                     f.result()
 
-            logger.info("Fetching completed")
+            elapsed_minutes = (time.monotonic() - start_time) / 60.0
+            self.logger.info(f"Fetching completed in {elapsed_minutes:.2f} minutes")
 
         except Exception as e:
-            logger.error(f"Error in filter_messages: {e}")
+            self.logger.error(f"Error in filter_messages: {e}")
