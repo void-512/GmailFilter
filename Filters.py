@@ -134,7 +134,7 @@ class Filter:
                 logging.info(f"Subject: {msg_detail['subject']}")
                 logging.info(f"Sender: {msg_detail['sender']}")
                 os.makedirs("debug", exist_ok=True)
-                with open(f"debug/payload{msg_detail['timestamp']}.html", "w") as f:
+                with open(f"debug/combined_text{msg_detail['timestamp']}.txt", "w") as f:
                     f.write(combined_text)
 
             # === domain matcher ===

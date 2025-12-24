@@ -114,9 +114,10 @@ def send_payload(subject, sender, current_user, html, text, timestamp):
             }
         }
     ]
-    
+
     if os.getenv("DEBUG", "0") == "1":
-        with open(f"payload{timestamp}-{int(time.time())}.html", "w") as f:
+        os.makedirs("sent", exist_ok=True)
+        with open(f"sent/payload{timestamp}-{int(time.time())}.html", "w") as f:
             f.write(html)
 
     response = requests.post(url, json=payload)
