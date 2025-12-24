@@ -67,7 +67,10 @@ class NewUsrHandler:
                 self.__insert_new_user(bubble_user_id)
 
                 # Put into shared queue for other components
-                self.instant_update_queue.put(bubble_user_id)
+                self.instant_update_queue.put({
+                    "bubble_user_id": bubble_user_id,
+                    "type": "full"
+                })
 
             except Exception as e:
                 logging.error(f"Error handling new bubble user id {bubble_user_id}: {e}")

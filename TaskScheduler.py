@@ -46,19 +46,24 @@ class TaskScheduler:
     def __incremental_update(self):
         bubble_user_ids = self.data.get_all_bubble_user_ids()
         for bubble_user_id in bubble_user_ids:
-            self.instant_update_queue.put(bubble_user_id)
+            self.instant_update_queue.put({
+                "bubble_user_id": bubble_user_id,
+                "type": "incremental"
+            })
 
     def instant_update(self):
         bubble_user_id = None
         while True:
             try:
-                bubble_user_id = self.instant_update_queue.get()
-                logging.info(f"Processing new bubble user id: {bubble_user_id}")
+                update_info = self.instant_update_queue.get()
+                bubble_user_id = update_info["bubble_user_id"]
+                update_type = update_info["type"]
+                logging.info(f"Processing new bubble user id: {bubble_user_id} with update type: {update_type}")
                 reset_state = self.data.reset(bubble_user_id)
                 if not reset_state:
                     logging.warning(f"Bubble ID: {bubble_user_id} invalid, skipping")
                     continue
-                self.filter_instance.filter_messages(self.data)
+                self.filter_instance.filter_messages(self.data, update_type)
 
             except Exception as e:
                 logging.error(f"Error processing bubble user id {bubble_user_id}: {e}")

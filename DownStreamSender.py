@@ -10,7 +10,7 @@ with open("config.json", "r") as f:
     config = json.load(f)
 url = config["downstreamEndpoint"]
 
-def send_payload(subject, sender, current_user, html, text, timestamp):
+def send_payload(subject, sender, current_user, html, text, timestamp, magic_string):
     CODE_LENGTH = 8
     dt = datetime.fromtimestamp(int(timestamp) / 1000, tz=timezone.utc)
     iso_date = dt.isoformat().replace("+00:00", "Z")
@@ -87,6 +87,7 @@ def send_payload(subject, sender, current_user, html, text, timestamp):
                 "textAsHtml": html,
                 "subject": formatted_subject,
                 "date": iso_date,
+                "updateTypeString": magic_string,
                 "to": {
                 "value": [
                     {
