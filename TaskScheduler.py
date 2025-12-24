@@ -16,6 +16,8 @@ class TaskScheduler:
         self.data = Data()
         self.filter_instance = Filter()
         self.delete_usr_listener = self.__start_delete_usr_listener()
+        self.logger = logging.getLogger("TaskScheduler")
+        self.logger.addHandler(watchtower.CloudWatchLogHandler(log_group='Fetcher', stream_name='fetcher'))
 
         with open("config.json", "r") as f:
             config = json.load(f)
@@ -54,20 +56,19 @@ class TaskScheduler:
 
     def instant_update(self):
         bubble_user_id = None
-        logger = logging.getLogger("TaskScheduler")
-        logger.addHandler(watchtower.CloudWatchLogHandler(log_group='Fetcher', stream_name='fetcher'))
+        
         while True:
             try:
                 update_info = self.instant_update_queue.get()
                 bubble_user_id = update_info["bubble_user_id"]
                 update_type = update_info["type"]
-                logger.info(f"Processing new bubble user id: {bubble_user_id} with update type: {update_type}")
+                self.logger.info(f"Processing new bubble user id: {bubble_user_id} with update type: {update_type}")
                 reset_state = self.data.reset(bubble_user_id)
                 if not reset_state:
-                    logger.warning(f"Bubble ID: {bubble_user_id} invalid, skipping")
+                    self.logger.warning(f"Bubble ID: {bubble_user_id} invalid, skipping")
                     continue
                 self.filter_instance.filter_messages(self.data, update_type)
 
             except Exception as e:
-                logger.error(f"Error processing bubble user id {bubble_user_id}: {e}")
+                self.logger.error(f"Error processing bubble user id {bubble_user_id}: {e}")
                 continue
