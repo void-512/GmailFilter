@@ -16,7 +16,7 @@ class Filter:
         with open("config.json", "r") as f:
                 config = json.load(f)
 
-        self.maxWorkers = config["maxThreads"]
+        self.maxWorkers = 1 if self.DEBUG else config["maxThreads"]
         self.__create_conn()
         self.include_all_compiled, \
         self.exclude_any_compiled, \
@@ -214,10 +214,6 @@ class Filter:
 
                 for f in futures:
                     f.result()
-
-            self.deduper.dedup()
-            self.deduper.send()
-            self.deduper.reset()
 
             logging.info("Fetching completed")
 
