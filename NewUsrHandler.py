@@ -20,6 +20,8 @@ class NewUsrHandler:
         self.defaultStartDate = int(start_dt.timestamp())
 
         self.instant_update_queue = instant_update_queue
+        self.logger = logging.getLogger("NewUsrHandler")
+        self.logger.addHandler(watchtower.CloudWatchLogHandler(log_group='Fetcher', stream_name='fetcher'))
         self.__init_db()
 
     def __init_db(self):
@@ -59,13 +61,10 @@ class NewUsrHandler:
         conn.close()
 
     def listen_new_usr(self):
-        logger = logging.getLogger("NewUsrHandler")
-        logger.addHandler(watchtower.CloudWatchLogHandler(log_group='Fetcher', stream_name='fetcher'))
         while True:
             try:
                 bubble_user_id = new_usr_queue.get()
-                logger.info(f"Received new bubble user id: {bubble_user_id}")
-
+                self.logger.info(f"Received new bubble user id: {bubble_user_id}")
                 # Insert into database
                 self.__insert_new_user(bubble_user_id)
 
@@ -76,5 +75,5 @@ class NewUsrHandler:
                 })
 
             except Exception as e:
-                logging.error(f"Error handling new bubble user id {bubble_user_id}: {e}")
+                self.logger.error(f"Error handling new bubble user id {bubble_user_id}: {e}")
                 continue
