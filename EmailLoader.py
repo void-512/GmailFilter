@@ -209,24 +209,36 @@ class Data:
         """
         service = self.__get_gmail_service()
         for msg_id in msg_id_list:
-            msg = service.users().messages().get(userId="me", id=msg_id, format="full").execute()
-            payload = msg.get("payload", {})
-            headers = payload.get("headers", [])
+            retry_count = 0
+            while True:
+                try:
+                    msg = service.users().messages().get(userId="me", id=msg_id, format="full").execute()
+                    payload = msg.get("payload", {})
+                    headers = payload.get("headers", [])
 
-            timestamp = msg.get("internalDate", "")
-            if self.latest_timestamp and int(timestamp) >= self.latest_timestamp:
-                self.latest_timestamp = int(timestamp)
-            
-            text, html = self.__get_text(msg)
+                    timestamp = msg.get("internalDate", "")
+                    if self.latest_timestamp and int(timestamp) >= self.latest_timestamp:
+                        self.latest_timestamp = int(timestamp)
+                    
+                    text, html = self.__get_text(msg)
 
-            self.records.append({
-                "msg_id": msg_id,
-                "sender": next((h["value"] for h in headers if h["name"].lower() == "from"), ""),
-                "subject": next((h["value"] for h in headers if h["name"].lower() == "subject"), ""),
-                "timestamp": timestamp,
-                "text": text,
-                "html": html
-            })
+                    self.records.append({
+                        "msg_id": msg_id,
+                        "sender": next((h["value"] for h in headers if h["name"].lower() == "from"), ""),
+                        "subject": next((h["value"] for h in headers if h["name"].lower() == "subject"), ""),
+                        "timestamp": timestamp,
+                        "text": text,
+                        "html": html
+                    })
+                    break
+                except Exception as e:
+                    self.logger.error(f"Error processing message {msg_id}: {e}, retrying...")
+                    retry_count += 1
+                    if retry_count >= 10:
+                        self.logger.error(f"Failed to process message {msg_id} after {retry_count} retries, skipping.")
+                        break
+                    time.sleep(3)
+                    
 
     def __get_text(self, msg):
         text = ""
