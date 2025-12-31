@@ -67,6 +67,7 @@ class TaskScheduler:
                 if not reset_state:
                     self.logger.warning(f"Bubble ID: {bubble_user_id} invalid, skipping")
                     continue
+                self.data.start_loading()
                 self.filter_instance.filter_messages(self.data, update_type)
 
             except Exception as e:
