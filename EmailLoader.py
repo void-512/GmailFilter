@@ -24,9 +24,8 @@ class Data:
         with open("config.json", "r") as f:
             config = json.load(f)
         if self.DEBUG:
-            debug_cfg = config.get("debug", {})
-            self.startDate = debug_cfg.get("startDate")
-            self.endDate = debug_cfg.get("endDate")
+            self.startDate = config["debug"]["startDate"]
+            self.endDate = config["debug"]["endDate"]
         self.maxWorkers = 1 if self.DEBUG else config["maxThreads"]
         self.batchSize = config["numMsgPerBatch"]
         self.db_path = config["dbPath"]
