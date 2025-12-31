@@ -1,6 +1,9 @@
 apscheduler
+beautifulsoup4
 boto3
 fastapi
+joblib
+lxml
 requests
 rich
 google-api-python-client
