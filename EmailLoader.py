@@ -1,6 +1,7 @@
 import os
 import json
 import time
+import lxml
 import queue
 import base64
 import sqlite3
@@ -319,7 +320,7 @@ class Data:
                 
                 else:
                     raw_html = raw_data_block["html"]
-                    soup = BeautifulSoup(raw_html, "html.parser")
+                    soup = BeautifulSoup(raw_html, "lxml")
                     for tag in soup(["script", "style"]):
                         tag.decompose()
                     text_in_html = soup.get_text(separator=" ", strip=True)
