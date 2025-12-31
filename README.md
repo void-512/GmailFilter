@@ -31,24 +31,38 @@ The project includes 3 config files: **auth.json**, **config.json**, and **keywo
 #### config.json
 ```json
 {
-  "numMsgPerBatch": 5000,
-  "keywordFile": "keywords.json",
-  "scopes": "https://www.googleapis.com/auth/gmail.readonly",
-  "dbPath": "users.db",
-  "defaultStartMonthsAgo": 6,
-  "maxThreads": 8,
-  "debug": {
-    "startDate": "2024/01/15",
-    "endDate": "2024/01/16"
-  }
+    "numMsgPerBatch": 5000,
+    "filterType": "ml",
+    "keywordFile": "keywords.json",
+    "scopes": "https://www.googleapis.com/auth/gmail.readonly",
+    "dbPath": "users.db",
+    "defaultStartMonthsAgo": 24,
+    "maxThreads": 8,
+    "authServiceEndpoint": "https://auth.garde-robe.com/auth/token",
+    "downstreamEndpoint": "https://clients-shared-101.helixautomation.dev/webhook/garde-robe/process_email",
+    "dailyIncrementalUpdateHour": 2,
+    "dailyIncrementalUpdateMinute": 30,
+    "mlFilter": {
+        "modelName": "model.joblib",
+        "threshold": 0.9
+    },
+    "debug": {
+        "startDate": "2023/07/01",
+        "endDate": "2023/12/31"
+    }
 }
 ```
-- **numMsgPerBatch**: Number of messages fetched and processed per batch (higher value may slightly increase performance, with a higher RAM usage)
+- **numMsgPerBatch**: Maximum number of messages in the buffer of producer-consumer model (higher value may slightly increase performance, with a higher RAM usage)
+- **filterType**: Traditional regular expression matching ```regex``` or experimental machine learning matching ```ml```
 - **keywordFile**: Path to the keyword and pattern configuration file used by the filtering engine
 - **scopes**: Gmail API OAuth scope used for email access
 - **dbPath**: SQLite database file storing user metadata and processing state
 - **defaultStartMonthsAgo**: Fetching the email *n* months before today
 - **maxThreads**: Maximum number of worker threads used for concurrent processing
+- **authServiceEndpoint**: Auth service to get user tokens
+- **downstreamEndpoint**: Endpoint of downstream parsing service
+- **dailyIncrementalUpdateHour** & **dailyIncrementalUpdateMinute**: Time for incremental update
+- **mlFilter**: Config for machine learning filter specifically, effective when ```filterType == 'ml'```
 - **debug**: effective when debug mode enabled, see *Debug* section
 
  #### keywords.json

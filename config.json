@@ -1,15 +1,21 @@
 {
     "numMsgPerBatch": 5000,
+    "filterType": "ml",
     "keywordFile": "keywords.json",
     "scopes": "https://www.googleapis.com/auth/gmail.readonly",
     "dbPath": "users.db",
     "defaultStartMonthsAgo": 24,
     "maxThreads": 8,
+    "authServiceEndpoint": "https://auth.garde-robe.com/auth/token",
     "downstreamEndpoint": "https://clients-shared-101.helixautomation.dev/webhook/garde-robe/process_email",
     "dailyIncrementalUpdateHour": 2,
     "dailyIncrementalUpdateMinute": 30,
+    "mlFilter": {
+        "modelName": "model.joblib",
+        "threshold": 0.9
+    },
     "debug": {
-        "startDate": "2024/01/15",
-        "endDate": "2024/01/16"
+        "startDate": "2023/07/01",
+        "endDate": "2023/12/31"
     }
 }
