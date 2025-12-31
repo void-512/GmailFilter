@@ -7,16 +7,19 @@ import base64
 import sqlite3
 import logging
 import requests
-import watchtower
+import warnings
 import threading
+import watchtower
 from datetime import datetime
 from bs4 import BeautifulSoup
 from sentinels import Sentinel
+from bs4 import XMLParsedAsHTMLWarning
 from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 END = Sentinel('END')
+warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
 
 class Data:
     def __init__(self):
