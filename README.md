@@ -61,14 +61,12 @@ The project includes 3 config files: **auth.json**, **config.json**, and **keywo
   "exclude_any_keywords": ["shipment-tracking@amazon.com"],
   "order_id_patterns": ["ORDER NUMBER\\s\\d{11}"],
   "domains": ["hm.com"],
-  "return_keywords": ["refund"]
 }
 ```
 - **include_all_keywords**: Requires that an email contain at least one keyword from *each* defined group to be considered a valid match
 - **exclude_any_keywords**: Immediately rejects any email containing one or more of the specified keywords
 - **order_id_patterns**: Defines regular expressions used to detect valid order id
 - **domains**: Restricts processing to emails sent from approved sender domains only
-- **return_keywords**: Identifies refund or return–related emails and is reserved for future classification or workflow expansion (currently useless)
 
 ## API Documentation
 
