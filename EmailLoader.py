@@ -1,7 +1,7 @@
 import os
 import json
 import time
-import json
+import queue
 import base64
 import sqlite3
 import logging
@@ -9,9 +9,13 @@ import requests
 import watchtower
 import threading
 from datetime import datetime
+from bs4 import BeautifulSoup
+from sentinels import Sentinel
 from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
 from concurrent.futures import ThreadPoolExecutor, as_completed
+
+END = Sentinel('END')
 
 class Data:
     def __init__(self):
@@ -31,17 +35,13 @@ class Data:
         self.expire_date = None
         self.latest_timestamp = None
         self.current_user = None
-        self.records = []
+        self.raw_htmls = queue.Queue(maxsize=self.batchSize)
+        self.preprocessed_records = queue.Queue(maxsize=self.batchSize)
         self.__init_db()
 
-        self.msg_ids = None
-
-        self.msg_id_groups = None
-        self.batch_idx = 0
-        self.index = 0
+        self.all_msg_ids = None
         self.logger = logging.getLogger("DataReset")
         self.logger.addHandler(watchtower.CloudWatchLogHandler(log_group='Fetcher', stream_name='fetcher'))
-
 
     def __init_db(self):
         """Create table if it does not exist."""
@@ -70,10 +70,9 @@ class Data:
         Load or refresh token, expire_date, and latest_timestamp for the given bubble user.
         """
         self.bubble_user_id = bubble_user_id
-        self.batch_idx = 0
-        self.index = 0
-        self.records = []
         self.current_user = None
+        self.preprocessed_records = queue.Queue(maxsize=self.batchSize)
+        self.raw_htmls = queue.Queue(maxsize=self.batchSize)
 
         with sqlite3.connect(self.db_path) as conn:
             cur = conn.cursor()
@@ -100,11 +99,7 @@ class Data:
                     )
                 return False
 
-        self.msg_ids = self.__get_all_msg_id()
-        self.msg_id_groups = [
-            self.msg_ids[i:i + self.batchSize]
-            for i in range(0, len(self.msg_ids), self.batchSize)
-        ]
+        self.all_msg_ids = self.__get_all_msg_id()
 
         return True
 
@@ -157,7 +152,6 @@ class Data:
 
         return True
 
-
     def __get_gmail_service(self):
         creds = None
 
@@ -203,73 +197,51 @@ class Data:
 
         return [msg['id'] for msg in all_messages]
 
-    def __process_msg_thread(self, msg_id_list):
-        """
-        Worker function for each thread: fetch message, extract fields, push to records.
-        """
-        service = self.__get_gmail_service()
-        for msg_id in msg_id_list:
-            retry_count = 0
-            while True:
-                try:
-                    msg = service.users().messages().get(userId="me", id=msg_id, format="full").execute()
-                    payload = msg.get("payload", {})
-                    headers = payload.get("headers", [])
-
-                    timestamp = msg.get("internalDate", "")
-                    if self.latest_timestamp and int(timestamp) >= self.latest_timestamp:
-                        self.latest_timestamp = int(timestamp)
-                    
-                    text, html = self.__get_text(msg)
-
-                    self.records.append({
-                        "msg_id": msg_id,
-                        "sender": next((h["value"] for h in headers if h["name"].lower() == "from"), ""),
-                        "subject": next((h["value"] for h in headers if h["name"].lower() == "subject"), ""),
-                        "timestamp": timestamp,
-                        "text": text,
-                        "html": html
-                    })
-                    break
-                except Exception as e:
-                    self.logger.error(f"Error processing message {msg_id}: {e}, retrying...")
-                    retry_count += 1
-                    if retry_count >= 10:
-                        self.logger.error(f"Failed to process message {msg_id} after {retry_count} retries, skipping.")
-                        break
-                    time.sleep(3)
-                    
-
-    def __get_text(self, msg):
-        text = ""
+    def __get_html(self, msg):
         html = ""
 
         payload = msg.get("payload", {})
 
         def process_part(part):
-            nonlocal text, html
+            nonlocal html
 
             mime = part.get("mimeType", "")
             body = part.get("body", {})
 
-            # text/plain
-            if mime == "text/plain" and "data" in body:
-                decoded = base64.urlsafe_b64decode(body["data"]).decode("utf-8", errors="ignore")
-                text += decoded + "\n"
-
-            # text/html
-            elif mime == "text/html" and "data" in body:
+            if mime == "text/html" and "data" in body:
                 decoded = base64.urlsafe_b64decode(body["data"]).decode("utf-8", errors="ignore")
                 html += decoded + "\n"
 
-            # multipart/*
             elif mime.startswith("multipart/") and "parts" in part:
                 for sub in part["parts"]:
                     process_part(sub)
 
         process_part(payload)
 
-        return text.strip(), html.strip()
+        return html.strip()
+
+    def __get_text(self, msg):
+        text = ""
+
+        payload = msg.get("payload", {})
+
+        def process_part(part):
+            nonlocal text
+
+            mime = part.get("mimeType", "")
+            body = part.get("body", {})
+
+            if mime == "text/plain" and "data" in body:
+                decoded = base64.urlsafe_b64decode(body["data"]).decode("utf-8", errors="ignore")
+                text += decoded + "\n"
+
+            elif mime.startswith("multipart/") and "parts" in part:
+                for sub in part["parts"]:
+                    process_part(sub)
+
+        process_part(payload)
+
+        return text.strip()
 
     def __update_user_timestamp_and_expire(self):
         """Write latest_timestamp and expire_date to database."""
@@ -288,47 +260,122 @@ class Data:
         conn.commit()
         conn.close()
 
+    def __load_msg_thread(self, msg_id_list):
+        """
+        Worker function for each thread: fetch message, extract fields, push to records.
+        """
+        service = self.__get_gmail_service()
+        for msg_id in msg_id_list:
+            retry_count = 0
+            while True:
+                try:
+                    msg = service.users().messages().get(userId="me", id=msg_id, format="full").execute()
+                    payload = msg.get("payload", {})
+                    headers = payload.get("headers", [])
 
-    def __load_next_batch(self):
+                    timestamp = msg.get("internalDate", "")
+                    with self.lock:
+                        if not self.latest_timestamp or int(timestamp) > self.latest_timestamp:
+                            self.latest_timestamp = int(timestamp)
+
+                    self.raw_htmls.put({
+                        "msg_id": msg_id,
+                        "sender": next((h["value"] for h in headers if h["name"].lower() == "from"), ""),
+                        "subject": next((h["value"] for h in headers if h["name"].lower() == "subject"), ""),
+                        "timestamp": timestamp,
+                        "html": self.__get_html(msg),
+                        "text": self.__get_text(msg)
+                    }, block=True, timeout=None)
+                    break
+                except Exception as e:
+                    self.logger.error(f"Error fetching message {msg_id}: {e}")
+                    retry_count += 1
+                    if retry_count >= 3:
+                        self.logger.error(f"Failed to fetch message {msg_id} after {retry_count} attempts.")
+                        break
+                    time.sleep(2 ** retry_count)
+
+    def __html_preprocess_thread(self):
+        '''
+        HTML preprocessor prepared for ML filtering, but given the reliability of the model, using regex instead, so this is currently disabled.
+        Raw HTML and text are directly passed to the next stage.
+        '''
+        while True:
+            try:
+                raw_data_block = self.raw_htmls.get(block=True, timeout=None)
+                if raw_data_block is END:
+                    break
+                raw_html = raw_data_block["html"]
+                '''
+                soup = BeautifulSoup(raw_html, "html.parser")
+                for tag in soup(["script", "style"]):
+                    tag.decompose()
+                text = soup.get_text(separator=" ", strip=True)
+                cleaned_html = str(soup)
+                '''
+                self.preprocessed_records.put({
+                    "msg_id": raw_data_block["msg_id"],
+                    "sender": raw_data_block["sender"],
+                    "subject": raw_data_block["subject"],
+                    "timestamp": raw_data_block["timestamp"],
+                    "html": raw_html,
+                    "text": raw_data_block["text"]
+                }, block=True, timeout=None)
+            
+            except Exception as e:
+                self.logger.error(f"Error in HTML preprocessing: {e}")
+
+    def __load_raw_msgs(self):
         def chunk_list(lst, n):
             k, m = divmod(len(lst), n)
             return [lst[i*k + min(i, m):(i+1)*k + min(i+1, m)] for i in range(n)]
 
-        self.records = []
-
-        if self.batch_idx >= len(self.msg_id_groups):
-            return None
-
-        batch = self.msg_id_groups[self.batch_idx]
-        self.batch_idx += 1
-        self.index = 0
-
-        groups = chunk_list(batch, self.maxWorkers)
-
+        groups = chunk_list(self.all_msg_ids, self.maxWorkers)
+        
         with ThreadPoolExecutor(max_workers=self.maxWorkers) as executor:
             futures = [
-                executor.submit(self.__process_msg_thread, group)
+                executor.submit(self.__load_msg_thread, group)
                 for group in groups if group
             ]
             for f in as_completed(futures):
                 f.result()
-        
+
         self.__update_user_timestamp_and_expire()
 
-    def get_next(self):
-        with self.lock:
-            if self.index >= len(self.records):
-                self.__load_next_batch()
-                if len(self.records) == 0:
-                    return None
-                logging.info(f"Loaded batch {self.batch_idx}/{len(self.msg_id_groups)}")
-            result = self.records[self.index]
-            self.index += 1
-            return result
+        for _ in range(self.maxWorkers):
+            self.raw_htmls.put(END)
 
+    def __html_preprocess(self):
+        with ThreadPoolExecutor(max_workers=self.maxWorkers) as executor:
+            futures = [
+                executor.submit(self.__html_preprocess_thread)
+                for _ in range(self.maxWorkers)
+            ]
+            for f in as_completed(futures):
+                result = f.result()
+        
+        self.preprocessed_records.put(END)
+
+    def start_loading(self):
+        raw_loader_thread = threading.Thread(target=self.__load_raw_msgs)
+        preprocess_thread = threading.Thread(target=self.__html_preprocess)
+        raw_loader_thread.start()
+        preprocess_thread.start()
+        
     def get_all_bubble_user_ids(self):
         with sqlite3.connect(self.db_path) as conn:
             cur = conn.cursor()
             cur.execute("SELECT bubble_id FROM bubble_users")
             rows = cur.fetchall()
         return [row[0] for row in rows]
+
+    def get_next(self):
+        try:
+            record = self.preprocessed_records.get(block=True, timeout=None)
+            if record is END:
+                self.preprocessed_records.put(END)
+                return None
+            return record
+        except Exception as e:
+            self.logger.error(f"Error getting next record: {e}")
+            return None
