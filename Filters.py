@@ -19,7 +19,6 @@ class Filter:
                 config = json.load(f)
 
         self.maxWorkers = 1 if self.DEBUG else config["maxThreads"]
-        self.__create_conn()
         self.include_all_compiled, \
         self.exclude_any_compiled, \
         self.order_id_patterns, \
@@ -29,25 +28,6 @@ class Filter:
         self.full_update_magic_string = None
         self.logger = logging.getLogger("Filters")
         self.logger.addHandler(watchtower.CloudWatchLogHandler(log_group='Fetcher', stream_name='fetcher'))
-
-    def __create_conn(self):
-        with open("config.json", "r") as f:
-            config = json.load(f)
-        db_path = "matches.db"
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS matched_messages (
-                id TEXT PRIMARY KEY,
-                subject TEXT,
-                order_id TEXT,
-                sender TEXT,
-                domain TEXT,
-                timestamp TEXT
-            )
-        """)
-        conn.commit()
-        conn.close()
 
     def __load_keywords(self):
         with open("config.json", "r") as f:
