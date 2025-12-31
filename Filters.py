@@ -86,33 +86,6 @@ class Filter:
                 return False
 
         return True
-
-    def __insert_match(self, metadata):
-
-        try:
-            msg_id = metadata["msg_id"]
-            subject = metadata["subject"]
-            order_id = metadata["order_id"]
-            domain = metadata["domain"]
-            sender = metadata["sender"]
-            timestamp = metadata["timestamp"]
-
-            with open("config.json", "r") as f:
-                config = json.load(f)
-
-            db_path = "matches.db"
-            conn = sqlite3.connect(db_path)
-            cursor = conn.cursor()
-            cursor.execute("""
-                INSERT OR REPLACE INTO matched_messages
-                (id, subject, order_id, sender, domain, timestamp)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """, (msg_id, subject, order_id, sender, domain, timestamp))
-            conn.commit()
-            conn.close()
-
-        except Exception as e:
-            logging.error(f"Error inserting match {msg_id}: {e}")
     
     def __acquire_magic_string(self):
         return base64.urlsafe_b64encode(os.urandom(16)).decode('utf-8').rstrip('=')
