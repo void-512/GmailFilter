@@ -3,13 +3,13 @@ import os
 import json
 import time
 import base64
+import joblib
 import sqlite3
 import logging
 import watchtower
 from email.utils import parseaddr
 from DownStreamSender import send_payload
 from concurrent.futures import ThreadPoolExecutor
-
 
 class Filter:
     def __init__(self):
@@ -19,15 +19,19 @@ class Filter:
                 config = json.load(f)
 
         self.maxWorkers = 1 if self.DEBUG else config["maxThreads"]
+        self.filter_type = config["filterType"]
         self.include_all_compiled, \
         self.exclude_any_compiled, \
         self.order_id_patterns, \
-        self.domain_keywords = self.__load_keywords()
+        self.domain_keywords = self.__load_keywords() if self.filter_type == "regex" else (None, None, None, None)
         self.current_user = None
         self.update_type = None
         self.full_update_magic_string = None
         self.logger = logging.getLogger("Filters")
         self.logger.addHandler(watchtower.CloudWatchLogHandler(log_group='Fetcher', stream_name='fetcher'))
+        if self.filter_type == "ml":
+            self.model = joblib.load(config["mlFilter"]["modelName"])
+            self.threshold = config["mlFilter"]["threshold"]
         self.fetch_count = 0
 
     def __load_keywords(self):
@@ -114,8 +118,9 @@ class Filter:
         return base64.urlsafe_b64encode(os.urandom(16)).decode('utf-8').rstrip('=')
 
     def __single_message_matcher(self, msg_detail):
-        combined_text = f"{msg_detail['subject']}\n{msg_detail['sender']}\n{msg_detail['text']}\n{msg_detail['html']}"
+        combined_text = f"{msg_detail['subject']}\n{msg_detail['sender']}\n{msg_detail['text']}\n{msg_detail['html']}" if self.filter_type == "regex" else None
         try:
+            match_flag = False
             if self.DEBUG:
                 logging.info("--------------------------------------------")
                 logging.info(f"Processing Message ID: {msg_detail['msg_id']}")
@@ -126,37 +131,46 @@ class Filter:
                 with open(f"debug/combined_text{msg_detail['timestamp']}.txt", "w") as f:
                     f.write(combined_text)
 
-            # === domain matcher ===
-            sender_domain = self.__extract_sender_domain(msg_detail['sender'])
-            matched_domain = None
-            for word in self.domain_keywords:
-                if word in sender_domain:
-                    matched_domain = word
-                    if self.DEBUG:
-                        logging.info(f"Matched domain: {matched_domain}")
-                    break
-
-            if matched_domain is None:
-                return
-
-            # keyword filtering
-            if self.__match_by_keywords(combined_text):
-                if self.DEBUG:
-                    logging.info(f"Keyword match found")
-                # order ID matcher
-                for pat in self.order_id_patterns:
-                    match = re.search(pat, combined_text, flags=re.IGNORECASE)
-                    if match:
+            if self.filter_type == "regex":
+                # === domain matcher ===
+                sender_domain = self.__extract_sender_domain(msg_detail['sender'])
+                matched_domain = None
+                for word in self.domain_keywords:
+                    if word in sender_domain:
+                        matched_domain = word
                         if self.DEBUG:
-                            logging.info(f"Order ID match found: {match.group(0).strip()}")
-                        order_id = match.group(0).strip()
+                            logging.info(f"Matched domain: {matched_domain}")
+                        break
 
-                        if self.update_type == "full":
-                            magic_string = self.full_update_magic_string
-                        else:
-                            magic_string = self.__acquire_magic_string()
-                        
-                        send_payload(
+                if matched_domain is None:
+                    return
+
+                # keyword filtering
+                if self.__match_by_keywords(combined_text):
+                    if self.DEBUG:
+                        logging.info(f"Keyword match found")
+                    # order ID matcher
+                    for pat in self.order_id_patterns:
+                        match = re.search(pat, combined_text, flags=re.IGNORECASE)
+                        if match:
+                            if self.DEBUG:
+                                logging.info(f"Order ID match found: {match.group(0).strip()}")
+                            order_id = match.group(0).strip()
+                            match_flag = True
+                            break
+
+            elif self.filter_type == "ml":
+                prob = self.model.predict_proba([msg_detail['text']])[0][1]
+                if prob > self.threshold:
+                    match_flag = True
+
+            else:
+                raise ValueError(f"Unknown filter type: {self.filter_type}")
+            
+            if match_flag:
+                self.fetch_count += 1
+                magic_string = self.full_update_magic_string if self.update_type == "full" else self.__acquire_magic_string()
+                send_payload(
                             subject=msg_detail['subject'],
                             sender=msg_detail['sender'],
                             current_user=self.current_user,
@@ -165,8 +179,6 @@ class Filter:
                             timestamp=msg_detail['timestamp'],
                             magic_string=magic_string
                         )
-                        self.fetch_count += 1
-                        break
 
         except Exception as e:
             self.logger.error(f"Error in filter_helper with msg_id {msg_detail['msg_id']}: {e}")
@@ -176,7 +188,6 @@ class Filter:
         self.logger.addHandler(watchtower.CloudWatchLogHandler(log_group='Fetcher', stream_name='fetcher'))
         self.current_user = data.get_current_user()
         self.update_type = update_type
-        self.full_update_magic_string = self.__acquire_magic_string() if update_type == "full" else None
         self.fetch_count = 0
 
         def worker():

@@ -30,6 +30,7 @@ class Data:
         self.maxWorkers = 1 if self.DEBUG else config["maxThreads"]
         self.batchSize = config["numMsgPerBatch"]
         self.db_path = config["dbPath"]
+        self.filter_type = config["filterType"]
         self.bubble_user_id = None
         self.token = None
         self.expire_date = None
@@ -305,22 +306,32 @@ class Data:
                 raw_data_block = self.raw_htmls.get(block=True, timeout=None)
                 if raw_data_block is END:
                     break
-                raw_html = raw_data_block["html"]
-                '''
-                soup = BeautifulSoup(raw_html, "html.parser")
-                for tag in soup(["script", "style"]):
-                    tag.decompose()
-                text = soup.get_text(separator=" ", strip=True)
-                cleaned_html = str(soup)
-                '''
-                self.preprocessed_records.put({
-                    "msg_id": raw_data_block["msg_id"],
-                    "sender": raw_data_block["sender"],
-                    "subject": raw_data_block["subject"],
-                    "timestamp": raw_data_block["timestamp"],
-                    "html": raw_html,
-                    "text": raw_data_block["text"]
-                }, block=True, timeout=None)
+                
+                if self.filter_type == "regex":
+                    self.preprocessed_records.put({
+                        "msg_id": raw_data_block["msg_id"],
+                        "sender": raw_data_block["sender"],
+                        "subject": raw_data_block["subject"],
+                        "timestamp": raw_data_block["timestamp"],
+                        "html": raw_data_block["html"],
+                        "text": raw_data_block["text"]
+                    }, block=True, timeout=None)
+                
+                else:
+                    raw_html = raw_data_block["html"]
+                    soup = BeautifulSoup(raw_html, "html.parser")
+                    for tag in soup(["script", "style"]):
+                        tag.decompose()
+                    text_in_html = soup.get_text(separator=" ", strip=True)
+                    cleaned_html = str(soup)
+                    self.preprocessed_records.put({
+                        "msg_id": raw_data_block["msg_id"],
+                        "sender": raw_data_block["sender"],
+                        "subject": raw_data_block["subject"],
+                        "timestamp": raw_data_block["timestamp"],
+                        "html": raw_html,
+                        "text": text_in_html
+                    }, block=True, timeout=None)
             
             except Exception as e:
                 self.logger.error(f"Error in HTML preprocessing: {e}")
