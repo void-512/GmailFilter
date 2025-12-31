@@ -184,16 +184,6 @@ class Filter:
                             timestamp=msg_detail['timestamp'],
                             magic_string=magic_string
                         )
-                        '''
-                        self.__insert_match({
-                            "msg_id": msg_detail['msg_id'],
-                            "subject": msg_detail['subject'],
-                            "order_id": order_id,
-                            "sender": msg_detail['sender'],
-                            "domain": matched_domain,
-                            "timestamp": msg_detail['timestamp']
-                        })
-                        '''
                         
                         break
 
