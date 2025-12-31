@@ -30,6 +30,7 @@ class Data:
         self.batchSize = config["numMsgPerBatch"]
         self.db_path = config["dbPath"]
         self.filter_type = config["filterType"]
+        self.auth_service_endpoint = config["authServiceEndpoint"]
         self.bubble_user_id = None
         self.token = None
         self.expire_date = None
@@ -104,7 +105,7 @@ class Data:
         return True
 
     def __get_token(self):
-        url = "https://auth.garde-robe.com/auth/token"
+        url = self.auth_service_endpoint
         params = {"bubble_user_id": self.bubble_user_id}
 
         with open("auth.json", "r") as f:
