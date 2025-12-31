@@ -28,6 +28,7 @@ class Filter:
         self.full_update_magic_string = None
         self.logger = logging.getLogger("Filters")
         self.logger.addHandler(watchtower.CloudWatchLogHandler(log_group='Fetcher', stream_name='fetcher'))
+        self.fetch_count = 0
 
     def __load_keywords(self):
         with open("config.json", "r") as f:
@@ -164,7 +165,7 @@ class Filter:
                             timestamp=msg_detail['timestamp'],
                             magic_string=magic_string
                         )
-                        
+                        self.fetch_count += 1
                         break
 
         except Exception as e:
@@ -176,6 +177,7 @@ class Filter:
         self.current_user = data.get_current_user()
         self.update_type = update_type
         self.full_update_magic_string = self.__acquire_magic_string() if update_type == "full" else None
+        self.fetch_count = 0
 
         def worker():
             while True:
@@ -194,6 +196,7 @@ class Filter:
 
             elapsed_minutes = (time.monotonic() - start_time) / 60.0
             self.logger.info(f"Fetching completed in {elapsed_minutes:.2f} minutes")
+            self.logger.info(f"Total matched messages fetched: {self.fetch_count}")
 
         except Exception as e:
             self.logger.error(f"Error in filter_messages: {e}")
