@@ -118,7 +118,7 @@ class Data:
         session.auth = (auth["auth_endpoint"]["user"], auth["auth_endpoint"]["pwd"])
 
         try:
-            response = session.get(url, params=params, allow_redirects=True)
+            response = session.get(url, params=params, allow_redirects=True, timeout=10)
         except requests.RequestException as e:
             self.logger.error(f"Network error while requesting token: {e}")
             return False
