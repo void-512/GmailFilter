@@ -22,7 +22,6 @@ The project includes 3 config files: **auth.json**, **config.json**, and **keywo
 }
 ```
 - **auth_endpoint**: The basic authentication to ask for user tokens from upstream service (this is determined by upstream service)
-- **fetcher_endpoint**: The basic authentication to receive tokens from upstream service (this is determined by yourself)
 
 #### config.json
 ```json
