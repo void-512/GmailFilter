@@ -18,10 +18,6 @@ The project includes 3 config files: **auth.json**, **config.json**, and **keywo
     "auth_endpoint": {
         "user": "usr1",
         "pwd": "abcd"
-    },
-    "fetcher_endpoint": {
-        "user": "usr2",
-        "pwd": "1234"
     }
 }
 ```
