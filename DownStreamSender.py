@@ -10,7 +10,7 @@ with open("config.json", "r") as f:
     config = json.load(f)
 url = config["downstreamEndpoint"]
 
-def send_payload(subject, sender, current_user, html, text, timestamp, magic_string):
+def send_payload(msg_id, subject, sender, current_user, html, text, timestamp, magic_string):
     CODE_LENGTH = 8
     dt = datetime.fromtimestamp(int(timestamp) / 1000, tz=timezone.utc)
     iso_date = dt.isoformat().replace("+00:00", "Z")
@@ -88,6 +88,7 @@ def send_payload(subject, sender, current_user, html, text, timestamp, magic_str
                 "subject": formatted_subject,
                 "date": iso_date,
                 "updateTypeString": magic_string,
+                "gmailId": msg_id,
                 "to": {
                 "value": [
                     {
@@ -118,8 +119,8 @@ def send_payload(subject, sender, current_user, html, text, timestamp, magic_str
 
     if os.getenv("DEBUG", "0") == "1":
         os.makedirs("sent", exist_ok=True)
-        with open(f"sent/payload{timestamp}-{int(time.time())}.html", "w") as f:
-            f.write(html)
+        with open(f"sent/payload{timestamp}-{int(time.time())}.json", "w") as f:
+            json.dump(payload, f)
 
     response = requests.post(url, json=payload)
 

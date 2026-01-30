@@ -144,6 +144,7 @@ class Filter:
                 self.fetch_count += 1
                 magic_string = self.full_update_magic_string if self.update_type == "full" else self.__acquire_magic_string()
                 send_payload(
+                            msg_id=msg_detail['msg_id'],
                             subject=msg_detail['subject'],
                             sender=msg_detail['sender'],
                             current_user=self.current_user,
