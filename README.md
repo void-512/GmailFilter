@@ -149,3 +149,9 @@ Debug mode will do following things:
 - *maxWorkers* will be set to 1 to ensure correct log output
 - For every email, the combined text, which is ```subject + html + text``` will be saved to folder *debug*. Timestamp in file name is the timestamp of this email
 - The ```html``` section in payload sent to the downstream service will be saved to folder *sent*. The first timestamp in file name is the timestamp of this email, the second timestamp is the time it's sent to the downstream service
+
+## Performance
+
+This image reveals the improvement of performance through eliminating redundant sessions and the introduction of ```producer-consumer``` model
+
+![Performance Diagram](comparison.png)
